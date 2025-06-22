@@ -2,14 +2,22 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { Moon, Sun, Home, Newspaper, Calendar, ClipboardList, FileText, Send } from 'lucide-react';
+import { Moon, Sun, Home, Newspaper, Calendar, ClipboardList, FileText, Send, MapPin, ChevronDown } from 'lucide-react';
 import { signOut } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { auth, firestore } from '../lib/firebase';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { useAuth } from '../lib/authContext';
+import { cities } from '../lib/cities';
 import Link from 'next/link';
 
 export default function DashboardLayout({ children }) {
   const [mounted, setMounted] = useState(false);
+  const [selectedCity, setSelectedCity] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const { theme, setTheme } = useTheme();
+  const { user } = useAuth();
   const router = useRouter();
 
   // Prevent hydration errors
@@ -17,14 +25,72 @@ export default function DashboardLayout({ children }) {
     setMounted(true);
   }, []);
 
-  // Handle logout
-  const handleLogout = async () => {
-    await signOut(auth);
-    router.push('/');
+  // Load user's city on component mount
+useEffect(() => {
+  const loadUserCity = async () => {
+    // Сначала проверяем localStorage
+    const savedCity = localStorage.getItem('selectedCity');
+    if (savedCity) {
+      setSelectedCity(savedCity);
+    }
+
+    if (user?.uid) {
+      try {
+        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const cityKey = userData.cityKey || '';
+          setSelectedCity(cityKey);
+          localStorage.setItem('selectedCity', cityKey); // Обновляем localStorage
+        }
+      } catch (error) {
+        console.error('Error loading user city:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      setIsLoading(false);
+    }
   };
+
+  if (mounted) {
+    loadUserCity();
+  }
+}, [user, mounted]);
+
+const handleCitySelect = async (cityKey) => {
+  if (!user?.uid) return;
+
+  setIsUpdating(true);
+  try {
+    await updateDoc(doc(firestore, 'users', user.uid), {
+      cityKey: cityKey
+    });
+    setSelectedCity(cityKey);
+    localStorage.setItem('selectedCity', cityKey); // Сохраняем в localStorage
+    setIsDropdownOpen(false);
+  } catch (error) {
+    console.error('Error updating city:', error);
+  } finally {
+    setIsUpdating(false);
+  }
+};
+
+  // Handle logout
+const handleLogout = async () => {
+  localStorage.removeItem('selectedCity'); // Очищаем localStorage
+  await signOut(auth);
+  router.push('/');
+};
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
+
+  // Get city display name
+  const getCityDisplayName = (cityKey) => {
+    const city = cities.find(c => c.key === cityKey);
+    return city ? city.name : 'Выберите город';
   };
 
   // Show loader until component is mounted
@@ -43,6 +109,7 @@ export default function DashboardLayout({ children }) {
       {/* Sidebar */}
       <aside className="w-64 p-6 border-r border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface">
         <h1 className="text-xl font-mbold mb-8">Admin Panel</h1>
+        
         <nav className="space-y-2">
           <Link
             href="/dashboard"
@@ -94,7 +161,45 @@ export default function DashboardLayout({ children }) {
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-mbold">Admin Dashboard</h1>
-            <div className="flex space-x-4">
+            <div className="flex items-center space-x-4">
+              {/* City Selector */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  disabled={isUpdating || isLoading}
+                  className="flex items-center justify-between px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary font-mregular hover:bg-light-border dark:hover:bg-dark-border transition-colors disabled:opacity-50 min-w-[160px]"
+                >
+                  <div className="flex items-center">
+                    <MapPin size={16} className="mr-2" />
+                    <span className="truncate">
+                      {isLoading ? 'Загрузка...' : 
+                       isUpdating ? 'Обновляется...' : 
+                       getCityDisplayName(selectedCity)}
+                    </span>
+                  </div>
+                  <ChevronDown 
+                    size={16} 
+                    className={`ml-2 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                
+                {isDropdownOpen && (
+                  <div className="absolute top-full right-0 mt-1 bg-light-surface dark:bg-dark-surface border border-light-border dark:border-dark-border rounded-md shadow-lg max-h-60 overflow-y-auto z-50 min-w-[200px]">
+                    {cities.map((city) => (
+                      <button
+                        key={city.key}
+                        onClick={() => handleCitySelect(city.key)}
+                        className={`w-full text-left px-3 py-2 hover:bg-light-border dark:hover:bg-dark-border transition-colors font-mregular ${
+                          selectedCity === city.key ? 'bg-light-border dark:bg-dark-border' : ''
+                        }`}
+                      >
+                        {city.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <button
                 onClick={toggleTheme}
                 className="p-2 rounded-lg transition-colors bg-light-surface hover:bg-gray-200 text-light-text-secondary dark:bg-dark-surface dark:hover:bg-dark-border dark:text-dark-text-primary"
@@ -106,7 +211,7 @@ export default function DashboardLayout({ children }) {
                 onClick={handleLogout}
                 className="py-2 px-4 rounded-md font-msemibold transition-colors bg-primary hover:bg-[#0055c3] text-white dark:bg-dark-primary dark:hover:bg-blue-600"
               >
-                Logout
+                Выйти
               </button>
             </div>
           </div>
