@@ -1,6 +1,7 @@
 import { AuthProvider } from './lib/authContext';
 import { ThemeProvider } from 'next-themes';
 import './globals.css';
+import { DataProvider } from './lib/dataContext';
 
 export const metadata = {
   title: 'Активный гражданин',
@@ -18,7 +19,9 @@ export default function RootLayout({ children }) {
           disableTransitionOnChange
         >
           <AuthProvider>
+            <DataProvider>
             {children}
+            </DataProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

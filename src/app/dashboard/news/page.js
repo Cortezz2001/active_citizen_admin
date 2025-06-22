@@ -3,23 +3,24 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../lib/authContext';
-import { getNewsByCity, deleteNewsItem } from './newsService';
 import { Pencil, Trash2, Eye } from 'lucide-react';
+import { useData } from '../../lib/dataContext';
 
 export default function NewsPage() {
   const { user } = useAuth();
+  const { getData, deleteItem } = useData();
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
+useEffect(() => {
     const fetchNews = async () => {
       if (!user?.uid) return;
-      
+
       try {
         setLoading(true);
         const cityKey = localStorage.getItem('selectedCity') || '';
-        const newsData = await getNewsByCity(cityKey);
+        const newsData = await getData('news', cityKey);
         setNews(newsData);
       } catch (err) {
         setError(err.message);
@@ -29,7 +30,17 @@ export default function NewsPage() {
     };
 
     fetchNews();
-  }, [user]);
+  }, [user, getData]);
+
+  const handleDelete = async (id) => {
+    try {
+      const cityKey = localStorage.getItem('selectedCity') || '';
+      await deleteItem('news', id, cityKey);
+      setNews((prev) => prev.filter((item) => item.id !== id));
+    } catch (error) {
+      setError(error.message);
+    }
+  };
 
   if (loading) {
     return (
@@ -107,7 +118,7 @@ export default function NewsPage() {
                 <Pencil size={16} />
               </Link>
               <button
-                onClick={() => deleteNewsItem(item.id)}
+                onClick={() => handleDelete(item.id)}
                 className="p-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900 transition-colors text-red-500 dark:text-red-300 font-mmedium"
                 title="Удалить"
               >

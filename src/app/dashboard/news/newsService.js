@@ -36,32 +36,26 @@ const getCategoryName = async (categoryId) => {
   }
 };
 
-// Получаем новости с названиями категорий
-export const getNewsByCity = async (cityKey) => {
+export const getDataByCity = async (cityKey) => {
   try {
     const q = query(
       collection(firestore, 'news'),
       where('cityKey', '==', cityKey)
     );
     const querySnapshot = await getDocs(q);
-    
     const news = [];
-    
-    // Получаем все новости
+
     for (const doc of querySnapshot.docs) {
       const newsData = doc.data();
       const categoryName = await getCategoryName(newsData.categoryId);
-      
       news.push({
         id: doc.id,
         ...newsData,
-        categoryName // Добавляем название категории
+        categoryName,
       });
     }
-    
-    // Сортируем по дате (новые сначала)
+
     news.sort((a, b) => b.createdAt?.toDate() - a.createdAt?.toDate());
-    
     return news;
   } catch (error) {
     console.error('Error fetching news:', error);
@@ -69,7 +63,7 @@ export const getNewsByCity = async (cityKey) => {
   }
 };
 
-export const deleteNewsItem = async (id) => {
+export const deleteItem = async (id) => {
   try {
     await deleteDoc(doc(firestore, 'news', id));
   } catch (error) {

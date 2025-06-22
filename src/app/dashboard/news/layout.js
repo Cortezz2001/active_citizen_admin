@@ -2,13 +2,19 @@
 import { useState } from 'react';
 import { Search, Filter, RefreshCw, Plus } from 'lucide-react';
 import Link from 'next/link';
+import { useData } from '../../lib/dataContext';
 
 export default function NewsLayout({ children }) {
   const [searchQuery, setSearchQuery] = useState('');
+  const { refreshData } = useData();
 
-  const handleRefresh = () => {
-    // This will trigger a re-render of the page component
-    window.location.reload();
+  const handleRefresh = async () => {
+    const cityKey = localStorage.getItem('selectedCity') || 'default';
+    try {
+      await refreshData('news', cityKey); 
+    } catch (error) {
+      console.error('Refresh failed:', error);
+    }
   };
 
   const handleFilter = () => {
@@ -25,17 +31,17 @@ export default function NewsLayout({ children }) {
           <div className="flex space-x-4">
             <Link
               href="/dashboard/news/create"
-              className="flex items-center px-4 py-2 rounded-md font-msemibold transition-colors bg-primary hover:bg-[#0055c3] text-white dark:bg-dark-primary dark:hover:bg-blue-600"
+              className="flex items-center px-3 py-2 rounded-md font-msemibold transition-colors bg-primary hover:bg-[#0055c3] text-white dark:bg-dark-primary dark:hover:bg-blue-600"
             >
-              <Plus size={16} className="mr-2" />
-              Добавить новость
+              <Plus size={16} />
+
             </Link>
             <button
               onClick={handleRefresh}
-              className="flex items-center px-4 py-2 rounded-md font-msemibold transition-colors bg-primary hover:bg-[#0055c3] text-white dark:bg-dark-primary dark:hover:bg-blue-600"
+              className="flex items-center px-3 py-2 rounded-md font-msemibold transition-colors bg-primary hover:bg-[#0055c3] text-white dark:bg-dark-primary dark:hover:bg-blue-600"
             >
-              <RefreshCw size={16} className="mr-2" />
-              Обновить
+              <RefreshCw size={16}  />
+
             </button>
           </div>
         </div>
