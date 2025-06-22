@@ -160,7 +160,7 @@ const handleLogout = async () => {
       <main className="flex-1 p-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-mbold">Admin Dashboard</h1>
+            <h1 className="text-2xl font-mbold">Активный гражданин</h1>
             <div className="flex items-center space-x-4">
               {/* City Selector */}
               <div className="relative">

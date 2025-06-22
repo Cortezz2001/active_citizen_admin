@@ -1,13 +1,14 @@
 'use client';
 import { useState } from 'react';
-import { Search, Filter, RefreshCw } from 'lucide-react';
+import { Search, Filter, RefreshCw, Plus } from 'lucide-react';
+import Link from 'next/link';
 
 export default function NewsLayout({ children }) {
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleRefresh = () => {
-    // Placeholder for refresh functionality
-    console.log('Refreshing news...');
+    // This will trigger a re-render of the page component
+    window.location.reload();
   };
 
   const handleFilter = () => {
@@ -17,16 +18,26 @@ export default function NewsLayout({ children }) {
 
   return (
     <div className="min-h-screen bg-light-background dark:bg-dark-background text-light-text-primary dark:text-dark-text-primary">
-      <div className="max-w-7xl p-6 mx-auto rounded-lg shadow-md bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border">
+      <div className="max-w-7xl mx-auto rounded-lg border border-light-border dark:border-dark-border p-6">
+        
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-mbold">Новости</h1>
-          <button
-            onClick={handleRefresh}
-            className="flex items-center px-4 py-2 rounded-md font-msemibold transition-colors bg-primary hover:bg-[#0055c3] text-white dark:bg-dark-primary dark:hover:bg-blue-600"
-          >
-            <RefreshCw size={16} className="mr-2" />
-            Обновить
-          </button>
+          <div className="flex space-x-4">
+            <Link
+              href="/dashboard/news/create"
+              className="flex items-center px-4 py-2 rounded-md font-msemibold transition-colors bg-primary hover:bg-[#0055c3] text-white dark:bg-dark-primary dark:hover:bg-blue-600"
+            >
+              <Plus size={16} className="mr-2" />
+              Добавить новость
+            </Link>
+            <button
+              onClick={handleRefresh}
+              className="flex items-center px-4 py-2 rounded-md font-msemibold transition-colors bg-primary hover:bg-[#0055c3] text-white dark:bg-dark-primary dark:hover:bg-blue-600"
+            >
+              <RefreshCw size={16} className="mr-2" />
+              Обновить
+            </button>
+          </div>
         </div>
         <div className="flex items-center mb-6">
           <div className="relative flex-1">
@@ -43,13 +54,13 @@ export default function NewsLayout({ children }) {
             onClick={handleFilter}
             className="ml-4 px-4 py-2 rounded-lg font-msemibold transition-colors bg-light-surface dark:bg-dark-surface border border-light-border dark:border-dark-border hover:bg-light-border dark:hover:bg-dark-border"
           >
-            <Filter size={16} className="inline-block mr-2" />
-            Фильтр
+            <Filter size={16} className="inline-block " />
+
           </button>
         </div>
-        <div className="p-6 rounded-lg shadow-md bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border">
+     
           {children}
-        </div>
+        
       </div>
     </div>
   );
