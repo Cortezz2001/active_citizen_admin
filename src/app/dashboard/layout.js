@@ -167,7 +167,7 @@ const handleLogout = async () => {
                 <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   disabled={isUpdating || isLoading}
-                  className="flex items-center justify-between px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary font-mregular hover:bg-light-border dark:hover:bg-dark-border transition-colors disabled:opacity-50 min-w-[160px]"
+                  className="flex items-center justify-between h-10 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary font-mregular hover:bg-light-border dark:hover:bg-dark-border transition-colors disabled:opacity-50 min-w-[160px]"
                 >
                   <div className="flex items-center">
                     <MapPin size={16} className="mr-2" />
@@ -202,14 +202,14 @@ const handleLogout = async () => {
 
               <button
                 onClick={toggleTheme}
-                className="p-2 rounded-lg transition-colors bg-light-surface hover:bg-gray-200 text-light-text-secondary dark:bg-dark-surface dark:hover:bg-dark-border dark:text-dark-text-primary"
+                className="flex items-center justify-center h-10 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary hover:bg-light-border dark:hover:bg-dark-border transition-colors"
                 title="Toggle theme"
               >
                 {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
               </button>
               <button
                 onClick={handleLogout}
-                className="py-2 px-4 rounded-md font-msemibold transition-colors bg-red-500 hover:bg-red-400 text-white "
+                className="flex items-center justify-center h-10 px-3 py-2 rounded-lg font-msemibold transition-colors bg-red-500 hover:bg-red-400 text-white"
               >
                 Выйти
               </button>
