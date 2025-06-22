@@ -209,15 +209,15 @@ const handleLogout = async () => {
               </button>
               <button
                 onClick={handleLogout}
-                className="py-2 px-4 rounded-md font-msemibold transition-colors bg-primary hover:bg-[#0055c3] text-white dark:bg-dark-primary dark:hover:bg-blue-600"
+                className="py-2 px-4 rounded-md font-msemibold transition-colors bg-red-500 hover:bg-red-400 text-white "
               >
                 Выйти
               </button>
             </div>
           </div>
-          <div className="p-6 rounded-lg shadow-md bg-light-card border-light-border dark:bg-dark-card dark:border-dark-border">
+         
             {children}
-          </div>
+      
         </div>
       </main>
     </div>

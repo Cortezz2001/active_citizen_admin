@@ -3,7 +3,7 @@ import { ThemeProvider } from 'next-themes';
 import './globals.css';
 
 export const metadata = {
-  title: 'My App',
+  title: 'Активный гражданин',
   description: 'A Next.js application with Firebase authentication',
 };
 
