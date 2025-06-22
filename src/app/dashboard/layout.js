@@ -9,6 +9,7 @@ import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { useAuth } from '../lib/authContext';
 import { cities } from '../lib/cities';
 import Link from 'next/link';
+import { useData } from '../lib/dataContext';
 
 export default function DashboardLayout({ children }) {
   const [mounted, setMounted] = useState(false);
@@ -19,7 +20,8 @@ export default function DashboardLayout({ children }) {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
   const router = useRouter();
-
+  const { refreshData } = useData();
+  
   // Prevent hydration errors
   useEffect(() => {
     setMounted(true);
@@ -69,6 +71,7 @@ const handleCitySelect = async (cityKey) => {
     setSelectedCity(cityKey);
     localStorage.setItem('selectedCity', cityKey); // Сохраняем в localStorage
     setIsDropdownOpen(false);
+    refreshData('news', cityKey); 
   } catch (error) {
     console.error('Error updating city:', error);
   } finally {
