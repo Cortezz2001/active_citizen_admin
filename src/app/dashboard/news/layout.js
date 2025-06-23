@@ -158,7 +158,7 @@ export default function NewsLayout({ children }) {
   };
 
   return (
-    <div className="min-h-screen bg-light-background dark:bg-dark-background text-light-text-primary dark:text-dark-text-primary">
+    <div className="min-h-screen bg-light-background dark:bg-dark-background text-light-text-primary dark:text-dark-text-primary shadow-md">
       <div className="max-w-7xl mx-auto rounded-lg border border-light-border dark:border-dark-border p-6">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center">

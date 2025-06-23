@@ -219,16 +219,16 @@ export default function NewsPage() {
             </div>
             
             <div className="flex items-center text-sm text-light-text-secondary dark:text-dark-text-secondary mb-3 font-mmedium">
-              <span className="mr-3">
-                Категория:
-                <span 
+                <span className="mr-2">
+                Категория:{' '}
+                <span
                   dangerouslySetInnerHTML={{
-                    __html: highlightText(item.categoryName || 'Без категории', searchQuery)
-                  }} 
+                    __html: highlightText(item.categoryName || 'Без категории', searchQuery),
+                  }}
                 />
               </span>
               <span>
-                Дата: {item.createdAt?.toDate().toLocaleDateString('ru-RU') || 'не указана'}
+                Дата создания: {item.createdAt?.toDate().toLocaleDateString('ru-RU') || 'не указана'}
               </span>
             </div>
             
