@@ -1,10 +1,12 @@
 // news/page.js
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../lib/authContext';
 import { Pencil, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useData } from '../../lib/dataContext';
+import { searchNews, filterNews } from './newsService';
+import { useSearchParams } from 'next/navigation';
 
 export default function NewsPage() {
   const { user } = useAuth();
@@ -13,7 +15,11 @@ export default function NewsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const searchParams = useSearchParams();
   const itemsPerPage = 5;
+
+  // Получаем поисковый запрос из URL
+  const searchQuery = searchParams.get('search') || '';
 
   useEffect(() => {
     const fetchNews = async () => {
@@ -34,6 +40,21 @@ export default function NewsPage() {
     fetchNews();
   }, [user, getData]);
 
+  // Фильтруем новости на основе поискового запроса
+  const filteredNews = useMemo(() => {
+    let filtered = searchNews(news, searchQuery);
+    
+    // Здесь можно добавить дополнительные фильтры
+    // filtered = filterNews(filtered, additionalFilters);
+    
+    return filtered;
+  }, [news, searchQuery]);
+
+  // Сбрасываем страницу при изменении поискового запроса
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
   const handleDelete = async (id) => {
     try {
       const cityKey = localStorage.getItem('selectedCity') || '';
@@ -41,7 +62,7 @@ export default function NewsPage() {
       setNews((prev) => prev.filter((item) => item.id !== id));
       
       // Проверяем, нужно ли перейти на предыдущую страницу после удаления
-      const newTotalItems = news.length - 1;
+      const newTotalItems = filteredNews.length - 1;
       const maxPage = Math.ceil(newTotalItems / itemsPerPage);
       if (currentPage > maxPage && maxPage > 0) {
         setCurrentPage(maxPage);
@@ -51,11 +72,11 @@ export default function NewsPage() {
     }
   };
 
-  // Вычисляем данные для пагинации
-  const totalPages = Math.ceil(news.length / itemsPerPage);
+  // Вычисляем данные для пагинации на основе отфильтрованных новостей
+  const totalPages = Math.ceil(filteredNews.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentNews = news.slice(startIndex, endIndex);
+  const currentNews = filteredNews.slice(startIndex, endIndex);
 
   const goToPage = (page) => {
     setCurrentPage(page);
@@ -103,6 +124,14 @@ export default function NewsPage() {
     return pages;
   };
 
+  // Функция для подсветки найденного текста
+  const highlightText = (text, query) => {
+    if (!query || !text) return text;
+    
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return text.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-800 px-1 rounded">$1</mark>');
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64 font-mregular">
@@ -122,14 +151,29 @@ export default function NewsPage() {
   return (
     <div className="space-y-4 font-mregular">
       {/* Информация о количестве записей и текущей странице */}
-      {news.length > 0 && (
+      {filteredNews.length > 0 && (
         <div className="flex justify-between items-center text-sm text-light-text-secondary dark:text-dark-text-secondary font-mmedium">
           <span>
-            Показано {startIndex + 1}-{Math.min(endIndex, news.length)} из {news.length} записей
+            {searchQuery ? (
+              <>
+                Найдено {filteredNews.length} из {news.length} записей
+                {filteredNews.length > itemsPerPage && (
+                  <span className="ml-2">
+                    (показано {startIndex + 1}-{Math.min(endIndex, filteredNews.length)})
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                Показано {startIndex + 1}-{Math.min(endIndex, filteredNews.length)} из {filteredNews.length} записей
+              </>
+            )}
           </span>
-          <span>
-            Страница {currentPage} из {totalPages}
-          </span>
+          {totalPages > 1 && (
+            <span>
+              Страница {currentPage} из {totalPages}
+            </span>
+          )}
         </div>
       )}
 
@@ -152,9 +196,13 @@ export default function NewsPage() {
           <div className="flex-1 p-4 flex flex-col">
             <div className="flex justify-between items-start mb-2">
               <h3 className="text-lg font-msemibold">
-                {item.title?.ru || 'Без названия'}
+                <span 
+                  dangerouslySetInnerHTML={{
+                    __html: highlightText(item.title?.ru || 'Без названия', searchQuery)
+                  }} 
+                />
               </h3>
-              <span className={`px-2 py-1 text-xs rounded-full font-msemibold ${
+              <span className={`px-2 py-1 text-xs rounded-full font-msemibold whitespace-nowrap ml-2 ${
                 item.status === 'published' 
                   ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' 
                   : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100'
@@ -165,7 +213,12 @@ export default function NewsPage() {
             
             <div className="flex items-center text-sm text-light-text-secondary dark:text-dark-text-secondary mb-3 font-mmedium">
               <span className="mr-3">
-                Категория: {item.categoryName || 'Без категории'}
+                Категория:
+                <span 
+                  dangerouslySetInnerHTML={{
+                    __html: highlightText(item.categoryName || 'Без категории', searchQuery)
+                  }} 
+                />
               </span>
               <span>
                 Дата: {item.createdAt?.toDate().toLocaleDateString('ru-RU') || 'не указана'}
@@ -173,17 +226,14 @@ export default function NewsPage() {
             </div>
             
             <p className="text-sm text-light-text-primary dark:text-dark-text-primary mb-4 flex-grow font-mregular">
-              {item.shortDescription?.ru || 'Нет описания'}
+              <span 
+                dangerouslySetInnerHTML={{
+                  __html: highlightText(item.shortDescription?.ru || 'Нет описания', searchQuery)
+                }} 
+              />
             </p>
             
             <div className="flex justify-end space-x-2">
-              <Link 
-                href={`/dashboard/news/${item.id}`}
-                className="p-2 rounded-md hover:bg-light-border dark:hover:bg-dark-border transition-colors font-mmedium"
-                title="Просмотреть"
-              >
-                <Eye size={16} />
-              </Link>
               <Link 
                 href={`/dashboard/news/edit/${item.id}`}
                 className="p-2 rounded-md hover:bg-light-border dark:hover:bg-dark-border transition-colors font-mmedium"
@@ -247,6 +297,18 @@ export default function NewsPage() {
             Далее
             <ChevronRight size={16} className="ml-1" />
           </button>
+        </div>
+      )}
+      
+      {/* Сообщения о результатах поиска */}
+      {searchQuery && filteredNews.length === 0 && news.length > 0 && (
+        <div className="text-center py-10 font-mregular">
+          <p className="text-light-text-secondary dark:text-dark-text-secondary mb-2">
+            По запросу "<strong>{searchQuery}</strong>" ничего не найдено
+          </p>
+          <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
+            Попробуйте изменить поисковый запрос или очистить фильтры
+          </p>
         </div>
       )}
       
