@@ -23,7 +23,8 @@ export default function NewsPage() {
     status: searchParams.get('status') || 'all',
     categoryId: searchParams.get('categoryId') || 'all',
     dateFrom: searchParams.get('dateFrom') || '',
-    dateTo: searchParams.get('dateTo') || ''
+    dateTo: searchParams.get('dateTo') || '',
+    sortOrder: searchParams.get('sortOrder') || 'newest'
   }), [searchParams]);
 
   useEffect(() => {
@@ -45,11 +46,17 @@ export default function NewsPage() {
     fetchNews();
   }, [user, getData]);
 
-  // Filter news based on search query and filter parameters
+  // Filter and sort news based on search query and filter parameters
   const filteredNews = useMemo(() => {
     let filtered = searchNews(news, searchQuery);
     filtered = filterNews(filtered, filterParams);
-    return filtered || [];
+    
+    // Apply sorting
+    return filtered.sort((a, b) => {
+      const dateA = a.createdAt?.toDate() || new Date(0);
+      const dateB = b.createdAt?.toDate() || new Date(0);
+      return filterParams.sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+    }) || [];
   }, [news, searchQuery, filterParams]);
 
   // Reset page when filters or search query change
@@ -155,7 +162,7 @@ export default function NewsPage() {
       {filteredNews.length > 0 && (
         <div className="flex justify-between items-center text-sm text-light-text-secondary dark:text-dark-text-secondary font-mmedium">
           <span>
-            {searchQuery || filterParams.status !== 'all' || filterParams.categoryId !== 'all' || filterParams.dateFrom || filterParams.dateTo ? (
+            {searchQuery || filterParams.status !== 'all' || filterParams.categoryId !== 'all' || filterParams.dateFrom || filterParams.dateTo || filterParams.sortOrder !== 'newest' ? (
               <>
                 Найдено {filteredNews.length} из {news.length} записей
                 {filteredNews.length > itemsPerPage && (
@@ -299,7 +306,7 @@ export default function NewsPage() {
         </div>
       )}
       
-      {(searchQuery || filterParams.status !== 'all' || filterParams.categoryId !== 'all' || filterParams.dateFrom || filterParams.dateTo) && filteredNews.length === 0 && news.length > 0 && (
+      {(searchQuery || filterParams.status !== 'all' || filterParams.categoryId !== 'all' || filterParams.dateFrom || filterParams.dateTo || filterParams.sortOrder !== 'newest') && filteredNews.length === 0 && news.length > 0 && (
         <div className="text-center py-10 font-mregular">
           <p className="text-light-text-secondary dark:text-dark-text-secondary mb-2">
             По текущим фильтрам ничего не найдено

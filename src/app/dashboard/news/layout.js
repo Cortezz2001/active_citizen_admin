@@ -16,7 +16,8 @@ export default function NewsLayout({ children }) {
     status: 'all',
     categoryId: 'all',
     dateFrom: '',
-    dateTo: ''
+    dateTo: '',
+    sortOrder: 'newest' // Default to newest first
   });
   const { refreshData } = useData();
   const searchParams = useSearchParams();
@@ -47,10 +48,11 @@ export default function NewsLayout({ children }) {
     const categoryId = searchParams.get('categoryId') || 'all';
     const dateFrom = searchParams.get('dateFrom') || '';
     const dateTo = searchParams.get('dateTo') || '';
+    const sortOrder = searchParams.get('sortOrder') || 'newest';
     
     setSearchQuery(query);
     setIsSearchActive(!!query);
-    setFilters({ status, categoryId, dateFrom, dateTo });
+    setFilters({ status, categoryId, dateFrom, dateTo, sortOrder });
   }, [searchParams]);
 
   const handleRefresh = async () => {
@@ -98,14 +100,15 @@ export default function NewsLayout({ children }) {
       status: 'all',
       categoryId: 'all',
       dateFrom: '',
-      dateTo: ''
+      dateTo: '',
+      sortOrder: 'newest'
     };
     setFilters(newFilters);
     updateSearchParams({ ...newFilters, search: searchQuery });
     setIsFilterModalOpen(false);
   };
 
-  const updateSearchParams = ({ search, status, categoryId, dateFrom, dateTo }) => {
+  const updateSearchParams = ({ search, status, categoryId, dateFrom, dateTo, sortOrder }) => {
     const params = new URLSearchParams(searchParams);
     
     if (search?.trim()) {
@@ -128,6 +131,9 @@ export default function NewsLayout({ children }) {
     if (dateTo) params.set('dateTo', dateTo);
     else params.delete('dateTo');
 
+    if (sortOrder !== 'newest') params.set('sortOrder', sortOrder);
+    else params.delete('sortOrder');
+
     router.replace(`${pathname}?${params.toString()}`);
   };
 
@@ -140,20 +146,22 @@ export default function NewsLayout({ children }) {
             {isSearchActive && (
               <div className="ml-4 flex items-center text-sm text-light-text-secondary dark:text-dark-text-secondary">
                 <span className="mr-2">Поиск:</span>
-                <span className="px-2 py-1 bg-primary/10 dark:bg-dark-primary/10 rounded-md font-mmedium">
+                <span className="px-2 py-1 bg-primary/10 dark:bg-dark-primary/10 rounded-md font-sm">
                   "{searchQuery}"
                 </span>
               </div>
             )}
-            {(filters.status !== 'all' || filters.categoryId !== 'all' || filters.dateFrom || filters.dateTo) && (
+            {(filters.status !== 'all' || filters.categoryId !== 'all' || filters.dateFrom || filters.dateTo || filters.sortOrder !== 'newest') && (
               <div className="ml-4 flex items-center text-sm text-light-text-secondary dark:text-dark-text-secondary">
                 <span className="mr-2">Фильтры:</span>
-                <span className="px-2 py-1 bg-primary/10 dark:bg-dark-primary/10 rounded-md font-mmedium">
+                <span className="px-2 py-1 bg-primary/10 dark:bg-dark-primary/10 rounded-md font-sm">
                   {filters.status !== 'all' && `Статус: ${filters.status === 'published' ? 'Опубликовано' : 'Черновик'}`}
-                  {filters.status !== 'all' && (filters.categoryId !== 'all' || filters.dateFrom || filters.dateTo) && ', '}
+                  {filters.status !== 'all' && (filters.categoryId !== 'all' || filters.dateFrom || filters.dateTo || filters.sortOrder !== 'newest') && ', '}
                   {filters.categoryId !== 'all' && `Категория: ${categories.find(c => c.id === filters.categoryId)?.name || 'Unknown'}`}
-                  {(filters.status !== 'all' || filters.categoryId !== 'all') && (filters.dateFrom || filters.dateTo) && ', '}
+                  {(filters.status !== 'all' || filters.categoryId !== 'all') && (filters.dateFrom || filters.dateTo || filters.sortOrder !== 'newest') && ', '}
                   {(filters.dateFrom || filters.dateTo) && `Дата: ${filters.dateFrom || '∞'} - ${filters.dateTo || '∞'}`}
+                  {(filters.dateFrom || filters.dateTo) && filters.sortOrder !== 'newest' && ', '}
+                  {filters.sortOrder !== 'newest' && `Сортировка: ${filters.sortOrder === 'oldest' ? 'Сначала старые' : 'Сначала новые'}`}
                 </span>
               </div>
             )}
@@ -202,8 +210,8 @@ export default function NewsLayout({ children }) {
 
         {/* Filter Modal */}
         {isFilterModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-light-background dark:bg-dark-background rounded-lg p-6 w-full max-w-md">
+          <div className="fixed inset-0 bg-light-background/90 dark:bg-dark-background/90 flex items-center justify-center z-50">
+            <div className="bg-light-surface dark:bg-dark-surface rounded-lg p-6 w-full max-w-md">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-mbold">Фильтры</h3>
                 <button
@@ -270,6 +278,20 @@ export default function NewsLayout({ children }) {
                       placeholder="To"
                     />
                   </div>
+                </div>
+
+                {/* Sort Order Filter */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Сортировка:</label>
+                  <select
+                    name="sortOrder"
+                    value={filters.sortOrder}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 rounded-md border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary font-mregular"
+                  >
+                    <option value="newest">Сначала новые</option>
+                    <option value="oldest">Сначала старые</option>
+                  </select>
                 </div>
               </div>
 
