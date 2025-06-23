@@ -4,71 +4,136 @@ import { Search, Filter, RefreshCw, Plus, X } from 'lucide-react';
 import Link from 'next/link';
 import { useData } from '../../lib/dataContext';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { getDocs, collection } from 'firebase/firestore';
+import { firestore } from '../../lib/firebase';
 
 export default function NewsLayout({ children }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [filters, setFilters] = useState({
+    status: 'all',
+    categoryId: 'all',
+    dateFrom: '',
+    dateTo: ''
+  });
   const { refreshData } = useData();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
-  // Инициализация поискового запроса из URL параметров
+  // Fetch categories for filter dropdown
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(firestore, 'news_categories'));
+        const categoriesData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().name?.ru || 'Без названия'
+        }));
+        setCategories(categoriesData);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Initialize search query and filters from URL parameters
   useEffect(() => {
     const query = searchParams.get('search') || '';
+    const status = searchParams.get('status') || 'all';
+    const categoryId = searchParams.get('categoryId') || 'all';
+    const dateFrom = searchParams.get('dateFrom') || '';
+    const dateTo = searchParams.get('dateTo') || '';
+    
     setSearchQuery(query);
     setIsSearchActive(!!query);
+    setFilters({ status, categoryId, dateFrom, dateTo });
   }, [searchParams]);
 
   const handleRefresh = async () => {
     const cityKey = localStorage.getItem('selectedCity') || 'default';
     try {
-      await refreshData('news', cityKey); 
+      await refreshData('news', cityKey);
     } catch (error) {
       console.error('Refresh failed:', error);
     }
   };
 
   const handleFilter = () => {
-    // Placeholder for filter functionality
-    console.log('Opening filter options...');
+    setIsFilterModalOpen(true);
   };
 
   const handleSearchChange = (e) => {
     const query = e.target.value;
     setSearchQuery(query);
-    updateSearchParams(query);
+    updateSearchParams({ ...filters, search: query });
   };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    updateSearchParams(searchQuery);
+    updateSearchParams({ ...filters, search: searchQuery });
   };
 
   const clearSearch = () => {
     setSearchQuery('');
     setIsSearchActive(false);
-    updateSearchParams('');
+    updateSearchParams({ ...filters, search: '' });
   };
 
-  const updateSearchParams = (query) => {
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const applyFilters = () => {
+    updateSearchParams({ ...filters, search: searchQuery });
+    setIsFilterModalOpen(false);
+  };
+
+  const clearFilters = () => {
+    const newFilters = {
+      status: 'all',
+      categoryId: 'all',
+      dateFrom: '',
+      dateTo: ''
+    };
+    setFilters(newFilters);
+    updateSearchParams({ ...newFilters, search: searchQuery });
+    setIsFilterModalOpen(false);
+  };
+
+  const updateSearchParams = ({ search, status, categoryId, dateFrom, dateTo }) => {
     const params = new URLSearchParams(searchParams);
     
-    if (query.trim()) {
-      params.set('search', query.trim());
+    if (search?.trim()) {
+      params.set('search', search.trim());
       setIsSearchActive(true);
     } else {
       params.delete('search');
       setIsSearchActive(false);
     }
-    
+
+    if (status !== 'all') params.set('status', status);
+    else params.delete('status');
+
+    if (categoryId !== 'all') params.set('categoryId', categoryId);
+    else params.delete('categoryId');
+
+    if (dateFrom) params.set('dateFrom', dateFrom);
+    else params.delete('dateFrom');
+
+    if (dateTo) params.set('dateTo', dateTo);
+    else params.delete('dateTo');
+
     router.replace(`${pathname}?${params.toString()}`);
   };
 
   return (
     <div className="min-h-screen bg-light-background dark:bg-dark-background text-light-text-primary dark:text-dark-text-primary">
       <div className="max-w-7xl mx-auto rounded-lg border border-light-border dark:border-dark-border p-6">
-        
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center">
             <h1 className="text-2xl font-mbold">Новости</h1>
@@ -78,7 +143,18 @@ export default function NewsLayout({ children }) {
                 <span className="px-2 py-1 bg-primary/10 dark:bg-dark-primary/10 rounded-md font-mmedium">
                   "{searchQuery}"
                 </span>
-
+              </div>
+            )}
+            {(filters.status !== 'all' || filters.categoryId !== 'all' || filters.dateFrom || filters.dateTo) && (
+              <div className="ml-4 flex items-center text-sm text-light-text-secondary dark:text-dark-text-secondary">
+                <span className="mr-2">Фильтры:</span>
+                <span className="px-2 py-1 bg-primary/10 dark:bg-dark-primary/10 rounded-md font-mmedium">
+                  {filters.status !== 'all' && `Статус: ${filters.status === 'published' ? 'Опубликовано' : 'Черновик'}`}
+                  {filters.status !== 'all' && (filters.categoryId !== 'all' || filters.dateFrom || filters.dateTo) && ', '}
+                  {filters.categoryId !== 'all' && `Категория: ${categories.find(c => c.id === filters.categoryId)?.name || 'Unknown'}`}
+                  {(filters.status !== 'all' || filters.categoryId !== 'all') && (filters.dateFrom || filters.dateTo) && ', '}
+                  {(filters.dateFrom || filters.dateTo) && `Дата: ${filters.dateFrom || '∞'} - ${filters.dateTo || '∞'}`}
+                </span>
               </div>
             )}
           </div>
@@ -123,9 +199,101 @@ export default function NewsLayout({ children }) {
             <Filter size={16} className="inline-block" />
           </button>
         </form>
-     
+
+        {/* Filter Modal */}
+        {isFilterModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-light-background dark:bg-dark-background rounded-lg p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-mbold">Фильтры</h3>
+                <button
+                  onClick={() => setIsFilterModalOpen(false)}
+                  className="text-light-text-secondary dark:text-dark-text-secondary hover:text-primary dark:hover:text-dark-primary"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Status Filter */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Статус:</label>
+                  <select
+                    name="status"
+                    value={filters.status}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 rounded-md border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary font-mregular"
+                  >
+                    <option value="all">Все</option>
+                    <option value="published">Опубликовано</option>
+                    <option value="draft">Черновик</option>
+                  </select>
+                </div>
+
+                {/* Category Filter */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Категория:</label>
+                  <select
+                    name="categoryId"
+                    value={filters.categoryId}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 rounded-md border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary font-mregular"
+                  >
+                    <option value="all">Все</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Date Range Filter */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Дата:</label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="date"
+                      name="dateFrom"
+                      value={filters.dateFrom}
+                      onChange={handleChange}
+                      className="flex-1 px-3 py-2 rounded-md border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary font-mregular"
+                      placeholder="From"
+                    />
+                    <span className="mx-2">–</span>
+                    <input
+                      type="date"
+                      name="dateTo"
+                      value={filters.dateTo}
+                      onChange={handleChange}
+                      className="flex-1 px-3 py-2 rounded-md border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary font-mregular"
+                      placeholder="To"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="px-4 py-2 rounded-md font-msemibold transition-colors bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
+                >
+                  Очистить
+                </button>
+                <button
+                  type="button"
+                  onClick={applyFilters}
+                  className="px-4 py-2 rounded-md font-msemibold transition-colors bg-primary hover:bg-[#0055c3] text-white dark:bg-dark-primary dark:hover:bg-blue-600"
+                >
+                  Применить
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {children}
-        
       </div>
     </div>
   );

@@ -1,9 +1,8 @@
-// news/page.js
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../lib/authContext';
-import { Pencil, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useData } from '../../lib/dataContext';
 import { searchNews, filterNews } from './newsService';
 import { useSearchParams } from 'next/navigation';
@@ -18,8 +17,14 @@ export default function NewsPage() {
   const searchParams = useSearchParams();
   const itemsPerPage = 5;
 
-  // Получаем поисковый запрос из URL
+  // Get filter parameters from URL
   const searchQuery = searchParams.get('search') || '';
+  const filterParams = useMemo(() => ({
+    status: searchParams.get('status') || 'all',
+    categoryId: searchParams.get('categoryId') || 'all',
+    dateFrom: searchParams.get('dateFrom') || '',
+    dateTo: searchParams.get('dateTo') || ''
+  }), [searchParams]);
 
   useEffect(() => {
     const fetchNews = async () => {
@@ -29,7 +34,7 @@ export default function NewsPage() {
         setLoading(true);
         const cityKey = localStorage.getItem('selectedCity') || '';
         const newsData = await getData('news', cityKey);
-        setNews(newsData);
+        setNews(newsData || []);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -40,20 +45,17 @@ export default function NewsPage() {
     fetchNews();
   }, [user, getData]);
 
-  // Фильтруем новости на основе поискового запроса
+  // Filter news based on search query and filter parameters
   const filteredNews = useMemo(() => {
     let filtered = searchNews(news, searchQuery);
-    
-    // Здесь можно добавить дополнительные фильтры
-    // filtered = filterNews(filtered, additionalFilters);
-    
-    return filtered;
-  }, [news, searchQuery]);
+    filtered = filterNews(filtered, filterParams);
+    return filtered || [];
+  }, [news, searchQuery, filterParams]);
 
-  // Сбрасываем страницу при изменении поискового запроса
+  // Reset page when filters or search query change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]);
+  }, [searchQuery, filterParams]);
 
   const handleDelete = async (id) => {
     try {
@@ -61,10 +63,10 @@ export default function NewsPage() {
       await deleteItem('news', id, cityKey);
       setNews((prev) => prev.filter((item) => item.id !== id));
       
-      // Проверяем, нужно ли перейти на предыдущую страницу после удаления
+      // Adjust page if necessary after deletion
       const newTotalItems = filteredNews.length - 1;
-      const maxPage = Math.ceil(newTotalItems / itemsPerPage);
-      if (currentPage > maxPage && maxPage > 0) {
+      const maxPage = Math.max(1, Math.ceil(newTotalItems / itemsPerPage));
+      if (currentPage > maxPage) {
         setCurrentPage(maxPage);
       }
     } catch (error) {
@@ -72,14 +74,16 @@ export default function NewsPage() {
     }
   };
 
-  // Вычисляем данные для пагинации на основе отфильтрованных новостей
-  const totalPages = Math.ceil(filteredNews.length / itemsPerPage);
+  // Pagination calculations
+  const totalPages = Math.max(1, Math.ceil(filteredNews.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentNews = filteredNews.slice(startIndex, endIndex);
 
   const goToPage = (page) => {
-    setCurrentPage(page);
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
   };
 
   const goToPrevious = () => {
@@ -94,7 +98,6 @@ export default function NewsPage() {
     }
   };
 
-  // Генерируем номера страниц для отображения
   const getPageNumbers = () => {
     const pages = [];
     const maxVisiblePages = 5;
@@ -124,7 +127,6 @@ export default function NewsPage() {
     return pages;
   };
 
-  // Функция для подсветки найденного текста
   const highlightText = (text, query) => {
     if (!query || !text) return text;
     
@@ -150,11 +152,10 @@ export default function NewsPage() {
 
   return (
     <div className="space-y-4 font-mregular">
-      {/* Информация о количестве записей и текущей странице */}
       {filteredNews.length > 0 && (
         <div className="flex justify-between items-center text-sm text-light-text-secondary dark:text-dark-text-secondary font-mmedium">
           <span>
-            {searchQuery ? (
+            {searchQuery || filterParams.status !== 'all' || filterParams.categoryId !== 'all' || filterParams.dateFrom || filterParams.dateTo ? (
               <>
                 Найдено {filteredNews.length} из {news.length} записей
                 {filteredNews.length > itemsPerPage && (
@@ -177,7 +178,6 @@ export default function NewsPage() {
         </div>
       )}
 
-      {/* Список новостей */}
       {currentNews.map((item) => (
         <div 
           key={item.id}
@@ -253,7 +253,6 @@ export default function NewsPage() {
         </div>
       ))}
       
-      {/* Пагинация */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center space-x-2 py-4">
           <button
@@ -300,11 +299,10 @@ export default function NewsPage() {
         </div>
       )}
       
-      {/* Сообщения о результатах поиска */}
-      {searchQuery && filteredNews.length === 0 && news.length > 0 && (
+      {(searchQuery || filterParams.status !== 'all' || filterParams.categoryId !== 'all' || filterParams.dateFrom || filterParams.dateTo) && filteredNews.length === 0 && news.length > 0 && (
         <div className="text-center py-10 font-mregular">
           <p className="text-light-text-secondary dark:text-dark-text-secondary mb-2">
-            По запросу "<strong>{searchQuery}</strong>" ничего не найдено
+            По текущим фильтрам ничего не найдено
           </p>
           <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
             Попробуйте изменить поисковый запрос или очистить фильтры
