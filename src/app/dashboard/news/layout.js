@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Search, Filter, RefreshCw, Plus, X } from 'lucide-react';
+import { Search, Filter, RefreshCw, Plus, X, ChevronDown, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { useData } from '../../lib/dataContext';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
@@ -17,8 +17,11 @@ export default function NewsLayout({ children }) {
     categoryId: 'all',
     dateFrom: '',
     dateTo: '',
-    sortOrder: 'newest' // Default to newest first
+    sortOrder: 'newest'
   });
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const { refreshData } = useData();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -137,6 +140,23 @@ export default function NewsLayout({ children }) {
     router.replace(`${pathname}?${params.toString()}`);
   };
 
+  const getStatusDisplayName = (status) => {
+    switch (status) {
+      case 'all': return 'Все';
+      case 'published': return 'Опубликовано';
+      case 'draft': return 'Черновик';
+      default: return status;
+    }
+  };
+
+  const getSortDisplayName = (sortOrder) => {
+    switch (sortOrder) {
+      case 'newest': return 'Сначала новые';
+      case 'oldest': return 'Сначала старые';
+      default: return sortOrder;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-light-background dark:bg-dark-background text-light-text-primary dark:text-dark-text-primary">
       <div className="max-w-7xl mx-auto rounded-lg border border-light-border dark:border-dark-border p-6">
@@ -145,7 +165,7 @@ export default function NewsLayout({ children }) {
             <h1 className="text-2xl font-mbold">Новости</h1>
             {isSearchActive && (
               <div className="ml-4 flex items-center text-sm text-light-text-secondary dark:text-dark-text-secondary">
-                <span className="mr-2">Поиск:</span>
+                <span className="mr-2 font-mregular">Поиск:</span>
                 <span className="px-2 py-1 bg-primary/10 dark:bg-dark-primary/10 rounded-md font-sm">
                   "{searchQuery}"
                 </span>
@@ -153,8 +173,8 @@ export default function NewsLayout({ children }) {
             )}
             {(filters.status !== 'all' || filters.categoryId !== 'all' || filters.dateFrom || filters.dateTo || filters.sortOrder !== 'newest') && (
               <div className="ml-4 flex items-center text-sm text-light-text-secondary dark:text-dark-text-secondary">
-                <span className="mr-2">Фильтры:</span>
-                <span className="px-2 py-1 bg-primary/10 dark:bg-dark-primary/10 rounded-md font-sm">
+                <span className="mr-2 font-mregular">Фильтры:</span>
+                <span className="px-2 py-1 bg-primary/10 dark:bg-dark-primary/10 rounded-md font-mregular">
                   {filters.status !== 'all' && `Статус: ${filters.status === 'published' ? 'Опубликовано' : 'Черновик'}`}
                   {filters.status !== 'all' && (filters.categoryId !== 'all' || filters.dateFrom || filters.dateTo || filters.sortOrder !== 'newest') && ', '}
                   {filters.categoryId !== 'all' && `Категория: ${categories.find(c => c.id === filters.categoryId)?.name || 'Unknown'}`}
@@ -223,40 +243,103 @@ export default function NewsLayout({ children }) {
               </div>
 
               <div className="space-y-4">
-                {/* Status Filter */}
+                {/* Status Filter - Custom Dropdown */}
                 <div>
                   <label className="block text-sm font-medium mb-1">Статус:</label>
-                  <select
-                    name="status"
-                    value={filters.status}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 rounded-md border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary font-mregular"
-                  >
-                    <option value="all">Все</option>
-                    <option value="published">Опубликовано</option>
-                    <option value="draft">Черновик</option>
-                  </select>
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                      className="flex items-center justify-between w-full px-3 py-2 rounded-md border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary font-mregular hover:bg-light-border dark:hover:bg-dark-border"
+                    >
+                      <span>{getStatusDisplayName(filters.status)}</span>
+                      <ChevronDown 
+                        size={16} 
+                        className={`ml-2 transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`}
+                      />
+                    </button>
+                    
+                    {isStatusDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-light-surface dark:bg-dark-surface border border-light-border dark:border-dark-border rounded-md shadow-lg z-50">
+                        <button
+                          onClick={() => {
+                            setFilters(prev => ({ ...prev, status: 'all' }));
+                            setIsStatusDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 hover:bg-light-border dark:hover:bg-dark-border ${filters.status === 'all' ? 'bg-light-border dark:bg-dark-border' : ''}`}
+                        >
+                          Все
+                        </button>
+                        <button
+                          onClick={() => {
+                            setFilters(prev => ({ ...prev, status: 'published' }));
+                            setIsStatusDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 hover:bg-light-border dark:hover:bg-dark-border ${filters.status === 'published' ? 'bg-light-border dark:bg-dark-border' : ''}`}
+                        >
+                          Опубликовано
+                        </button>
+                        <button
+                          onClick={() => {
+                            setFilters(prev => ({ ...prev, status: 'draft' }));
+                            setIsStatusDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 hover:bg-light-border dark:hover:bg-dark-border ${filters.status === 'draft' ? 'bg-light-border dark:bg-dark-border' : ''}`}
+                        >
+                          Черновик
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Category Filter */}
+                {/* Category Filter - Custom Dropdown */}
                 <div>
                   <label className="block text-sm font-medium mb-1">Категория:</label>
-                  <select
-                    name="categoryId"
-                    value={filters.categoryId}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 rounded-md border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary font-mregular"
-                  >
-                    <option value="all">Все</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                      className="flex items-center justify-between w-full px-3 py-2 rounded-md border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary font-mregular hover:bg-light-border dark:hover:bg-dark-border"
+                    >
+                      <span>
+                        {filters.categoryId === 'all' 
+                          ? 'Все' 
+                          : categories.find(c => c.id === filters.categoryId)?.name || 'Неизвестно'}
+                      </span>
+                      <ChevronDown 
+                        size={16} 
+                        className={`ml-2 transition-transform ${isCategoryDropdownOpen ? 'rotate-180' : ''}`}
+                      />
+                    </button>
+                    
+                    {isCategoryDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-light-surface dark:bg-dark-surface border border-light-border dark:border-dark-border rounded-md shadow-lg max-h-60 overflow-y-auto z-50">
+                        <button
+                          onClick={() => {
+                            setFilters(prev => ({ ...prev, categoryId: 'all' }));
+                            setIsCategoryDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 hover:bg-light-border dark:hover:bg-dark-border ${filters.categoryId === 'all' ? 'bg-light-border dark:bg-dark-border' : ''}`}
+                        >
+                          Все
+                        </button>
+                        {categories.map((category) => (
+                          <button
+                            key={category.id}
+                            onClick={() => {
+                              setFilters(prev => ({ ...prev, categoryId: category.id }));
+                              setIsCategoryDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 hover:bg-light-border dark:hover:bg-dark-border ${filters.categoryId === category.id ? 'bg-light-border dark:bg-dark-border' : ''}`}
+                          >
+                            {category.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Date Range Filter */}
+                {/* Date Range Filter (остается без изменений) */}
                 <div>
                   <label className="block text-sm font-medium mb-1">Дата:</label>
                   <div className="flex items-center space-x-2">
@@ -280,18 +363,44 @@ export default function NewsLayout({ children }) {
                   </div>
                 </div>
 
-                {/* Sort Order Filter */}
+                {/* Sort Order Filter - Custom Dropdown */}
                 <div>
                   <label className="block text-sm font-medium mb-1">Сортировка:</label>
-                  <select
-                    name="sortOrder"
-                    value={filters.sortOrder}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 rounded-md border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary font-mregular"
-                  >
-                    <option value="newest">Сначала новые</option>
-                    <option value="oldest">Сначала старые</option>
-                  </select>
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+                      className="flex items-center justify-between w-full px-3 py-2 rounded-md border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary font-mregular hover:bg-light-border dark:hover:bg-dark-border"
+                    >
+                      <span>{getSortDisplayName(filters.sortOrder)}</span>
+                      <ChevronDown 
+                        size={16} 
+                        className={`ml-2 transition-transform ${isSortDropdownOpen ? 'rotate-180' : ''}`}
+                      />
+                    </button>
+                    
+                    {isSortDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-light-surface dark:bg-dark-surface border border-light-border dark:border-dark-border rounded-md shadow-lg z-50">
+                        <button
+                          onClick={() => {
+                            setFilters(prev => ({ ...prev, sortOrder: 'newest' }));
+                            setIsSortDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 hover:bg-light-border dark:hover:bg-dark-border ${filters.sortOrder === 'newest' ? 'bg-light-border dark:bg-dark-border' : ''}`}
+                        >
+                          Сначала новые
+                        </button>
+                        <button
+                          onClick={() => {
+                            setFilters(prev => ({ ...prev, sortOrder: 'oldest' }));
+                            setIsSortDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 hover:bg-light-border dark:hover:bg-dark-border ${filters.sortOrder === 'oldest' ? 'bg-light-border dark:bg-dark-border' : ''}`}
+                        >
+                          Сначала старые
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

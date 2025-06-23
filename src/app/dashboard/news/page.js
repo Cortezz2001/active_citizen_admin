@@ -161,7 +161,7 @@ export default function NewsPage() {
     <div className="space-y-4 font-mregular">
       {filteredNews.length > 0 && (
         <div className="flex justify-between items-center text-sm text-light-text-secondary dark:text-dark-text-secondary font-mmedium">
-          <span>
+          <span className='font-mregular'>
             {searchQuery || filterParams.status !== 'all' || filterParams.categoryId !== 'all' || filterParams.dateFrom || filterParams.dateTo || filterParams.sortOrder !== 'newest' ? (
               <>
                 Найдено {filteredNews.length} из {news.length} записей
