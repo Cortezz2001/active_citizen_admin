@@ -1,19 +1,21 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '../../../lib/authContext';
-import { useData } from '../../../lib/dataContext'; // Import useData
-import { firestore, storage } from '../../../lib/firebase';
-import { collection, addDoc, doc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { useRouter, useParams } from 'next/navigation';
+import { useAuth } from '../../../../lib/authContext';
+import { useData } from '../../../../lib/dataContext'; // Import useData
+import { firestore, storage } from '../../../../lib/firebase';
+import { collection, doc, getDoc, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import MDEditor from '@uiw/react-md-editor';
-import { ChevronDown, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown, X, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 
-export default function CreateNewsPage() {
+export default function EditNewsPage() {
   const { user } = useAuth();
   const { refreshData } = useData(); // Destructure refreshData from useData
   const router = useRouter();
+  const params = useParams();
+  const newsId = params.id; // Get news ID from URL params
   const [categories, setCategories] = useState([]);
   const [activeLang, setActiveLang] = useState('ru');
   const [formData, setFormData] = useState({
@@ -27,10 +29,12 @@ export default function CreateNewsPage() {
   const [imageUrl, setImageUrl] = useState('');
   const [draftLoading, setDraftLoading] = useState(false);
   const [publishLoading, setPublishLoading] = useState(false);
+  const [fetchLoading, setFetchLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
+  // Fetch categories
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -47,6 +51,36 @@ export default function CreateNewsPage() {
     };
     fetchCategories();
   }, []);
+
+  // Fetch news item data
+  useEffect(() => {
+    const fetchNews = async () => {
+      if (!newsId) return;
+      try {
+        setFetchLoading(true);
+        const newsDoc = await getDoc(doc(firestore, 'news', newsId));
+        if (newsDoc.exists()) {
+          const data = newsDoc.data();
+          setFormData({
+            title: data.title || { ru: '', kz: '', en: '' },
+            shortDescription: data.shortDescription || { ru: '', kz: '', en: '' },
+            content: data.content || { ru: '', kz: '', en: '' },
+          });
+          setCategoryId(data.categoryId?.id || '');
+          setIsGlobal(data.isGlobal || false);
+          setImageUrl(data.imageUrl || '');
+        } else {
+          setError('Новость не найдена');
+        }
+      } catch (error) {
+        console.error('Error fetching news:', error);
+        setError('Ошибка загрузки новости');
+      } finally {
+        setFetchLoading(false);
+      }
+    };
+    fetchNews();
+  }, [newsId]);
 
   const handleInputChange = (field, lang, value) => {
     setFormData((prev) => ({
@@ -71,6 +105,7 @@ export default function CreateNewsPage() {
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('image/')) {
       setImageFile(file);
+      setImageUrl(''); // Clear existing image URL when new file is selected
     } else {
       setError('Пожалуйста, загрузите файл изображения');
     }
@@ -80,6 +115,7 @@ export default function CreateNewsPage() {
     const file = e.target.files[0];
     if (file && file.type.startsWith('image/')) {
       setImageFile(file);
+      setImageUrl(''); // Clear existing image URL when new file is selected
     } else {
       setError('Пожалуйста, выберите файл изображения');
     }
@@ -96,10 +132,9 @@ export default function CreateNewsPage() {
       !formData.title.en.trim() ||
       !formData.shortDescription.en.trim() ||
       !formData.content.en.trim() ||
-      !categoryId ||
-      !imageFile
+      !categoryId
     ) {
-      setError('Все поля, включая категорию и изображение, обязательны для заполнения');
+      setError('Все поля, включая категорию, обязательны для заполнения');
       return;
     }
 
@@ -108,10 +143,16 @@ export default function CreateNewsPage() {
     setError(null);
 
     try {
-      const storageRef = ref(storage, `news/${Date.now()}_${imageFile.name}`);
-      await uploadBytes(storageRef, imageFile);
-      const imageUrl = await getDownloadURL(storageRef);
-      setImageUrl(imageUrl);
+      let updatedImageUrl = imageUrl;
+      if (imageFile) {
+        const storageRef = ref(storage, `news/${Date.now()}_${imageFile.name}`);
+        await uploadBytes(storageRef, imageFile);
+        updatedImageUrl = await getDownloadURL(storageRef);
+      } else if (!imageUrl) {
+        setError('Изображение обязательно');
+        setLoading(false);
+        return;
+      }
 
       const newsData = {
         title: formData.title,
@@ -120,27 +161,34 @@ export default function CreateNewsPage() {
         categoryId: doc(firestore, 'news_categories', categoryId),
         cityKey: user?.cityKey || localStorage.getItem('selectedCity') || '',
         isGlobal,
-        imageUrl,
+        imageUrl: updatedImageUrl,
         status,
-        createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        viewCount: 0,
+        viewCount: 0, // Preserve existing viewCount or reset if needed
       };
 
-      await addDoc(collection(firestore, 'news'), newsData);
+      await setDoc(doc(firestore, 'news', newsId), newsData, { merge: true });
 
-      // Refresh the news cache after successful creation
+      // Refresh the news cache after successful update
       const cityKey = user?.cityKey || localStorage.getItem('selectedCity') || '';
       await refreshData('news', cityKey);
 
       router.push('/dashboard/news');
     } catch (error) {
-      console.error('Error creating news:', error);
-      setError('Ошибка при создании новости');
+      console.error('Error updating news:', error);
+      setError('Ошибка при обновлении новости');
     } finally {
       setLoading(false);
     }
   };
+
+  if (fetchLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen font-mregular">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-blue-500 dark:border-dark-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto font-mregular">
@@ -148,7 +196,7 @@ export default function CreateNewsPage() {
         <div className="text-2xl font-mbold text-light-text-primary dark:text-dark-text-primary ">
           <Link href="/dashboard/news" className="hover:text-primary">Новости</Link>
           <span className="mx-2">-</span>
-          <span>Создать</span>
+          <span>Редактировать</span>
         </div>
       </div>
 
@@ -311,13 +359,24 @@ export default function CreateNewsPage() {
           >
             {imageFile ? (
               <div className="flex items-center space-x-2">
+                <span className="text-light-text-primary dark:text-dark-text-primary font-mregular">{imageFile.name}</span>
+                <button
+                  onClick={() => setImageFile(null)}
+                  className="text-red-500 hover:text-red-600"
+                  disabled={draftLoading || publishLoading}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ) : imageUrl ? (
+              <div className="flex items-center space-x-2">
                 <img
-                  src={URL.createObjectURL(imageFile)}
-                  alt="Selected image"
+                  src={imageUrl}
+                  alt="Current news image"
                   className="max-h-28 object-contain"
                 />
                 <button
-                  onClick={() => setImageFile(null)}
+                  onClick={() => setImageUrl('')}
                   className="text-red-500 hover:text-red-600"
                   disabled={draftLoading || publishLoading}
                 >
@@ -335,7 +394,6 @@ export default function CreateNewsPage() {
               onChange={handleFileChange}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               disabled={draftLoading || publishLoading}
-              required
             />
           </div>
         </div>
@@ -363,7 +421,7 @@ export default function CreateNewsPage() {
                 : 'bg-primary hover:bg-blue-600 text-white'
             }`}
           >
-            {publishLoading ? 'Создание...' : 'Создать'}
+            {publishLoading ? 'Обновление...' : 'Обновить'}
           </button>
         </div>
       </div>
