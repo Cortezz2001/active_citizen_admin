@@ -30,6 +30,9 @@ export default function NewsPage() {
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -211,11 +214,19 @@ export default function NewsPage() {
     setCurrentPage(1);
   }, [searchQuery, filterParams]);
 
-  const handleDelete = async (id) => {
+  const handleDeleteClick = (id) => {
+    setItemToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!itemToDelete) return;
+
     try {
+      setIsDeleting(true);
       const cityKey = localStorage.getItem('selectedCity') || '';
-      await deleteItem('news', id, cityKey);
-      setNews((prev) => prev.filter((item) => item.id !== id));
+      await deleteItem('news', itemToDelete, cityKey);
+      setNews((prev) => prev.filter((item) => item.id !== itemToDelete));
       
       // Adjust page if necessary after deletion
       const newTotalItems = filteredNews.length - 1;
@@ -225,7 +236,16 @@ export default function NewsPage() {
       }
     } catch (error) {
       setError(error.message);
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
+      setItemToDelete(null);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setIsDeleteModalOpen(false);
+    setItemToDelete(null);
   };
 
   // Pagination calculations
@@ -378,7 +398,7 @@ export default function NewsPage() {
       {isFilterModalOpen && (
         <div className="fixed inset-0 bg-light-background/90 dark:bg-dark-background/90 flex items-center justify-center z-50">
           <div className="bg-light-surface dark:bg-dark-surface rounded-lg p-6 w-full max-w-md">
-            <div className="flex justifying-between items-center mb-4">
+            <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-mbold">Фильтры</h3>
               <button
                 onClick={() => setIsFilterModalOpen(false)}
@@ -570,6 +590,52 @@ export default function NewsPage() {
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
+     {isDeleteModalOpen && (
+        <div className="fixed inset-0 bg-light-background/90 dark:bg-dark-background/90 flex items-center justify-center z-50">
+          <div className="bg-light-surface dark:bg-dark-surface rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-mbold">Подтверждение удаления</h3>
+              <button
+                onClick={handleDeleteCancel}
+                className="text-light-text-secondary dark:text-dark-text-secondary hover:text-primary dark:hover:text-dark-primary"
+                disabled={isDeleting}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-light-text-primary dark:text-dark-text-primary mb-6 font-mregular">
+              Вы уверены, что хотите удалить эту новость? Это действие нельзя отменить.
+            </p>
+            <div className="flex justify-end space-x-2">
+              <button
+                type="button"
+                onClick={handleDeleteCancel}
+                className="px-4 py-2 rounded-md font-msemibold transition-colors bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isDeleting}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 rounded-md font-msemibold transition-colors bg-red-500 hover:bg-red-600 text-white dark:bg-red-600 dark:hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white mr-2"></div>
+                    Удаление...
+                  </>
+                ) : (
+                  'Удалить'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {filteredNews.length > 0 && (
         <div className="flex justify-between items-center text-sm text-light-text-secondary dark:text-dark-text-secondary font-mmedium">
           <span className='font-mregular'>
@@ -660,7 +726,7 @@ export default function NewsPage() {
                 <Pencil size={16} />
               </Link>
               <button
-                onClick={() => handleDelete(item.id)}
+                onClick={() => handleDeleteClick(item.id)}
                 className="p-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900 transition-colors text-red-500 dark:text-red-300 font-mmedium"
                 title="Удалить"
               >
