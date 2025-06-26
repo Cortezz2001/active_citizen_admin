@@ -763,13 +763,13 @@ export default function PetitionsPage() {
               >
                 <Pencil size={16} />
               </Link>
-              <button
+              {/* <button
                 onClick={() => handleDeleteClick(item.id)}
                 className="p-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900 transition-colors text-red-500 dark:text-red-300 font-mmedium"
                 title="Удалить"
               >
                 <Trash2 size={16} />
-              </button>
+              </button> */}
             </div>
           </div>
         </div>

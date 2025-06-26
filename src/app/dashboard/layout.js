@@ -111,7 +111,7 @@ const handleLogout = async () => {
     <div className="min-h-screen flex bg-light-background dark:bg-dark-background text-light-text-primary dark:text-dark-text-primary">
       {/* Sidebar */}
       <aside className="w-64 p-6 border-r border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface">
-        <h1 className="text-xl font-mbold mb-8">Admin Panel</h1>
+        <h1 className="text-xl font-mbold mb-8">Панель навигации</h1>
         
         <nav className="space-y-2">
           <Link
@@ -119,42 +119,42 @@ const handleLogout = async () => {
             className="flex items-center p-2 rounded-md font-mregular transition-colors hover:bg-light-border dark:hover:bg-dark-border"
           >
             <Home size={20} className="mr-3" />
-            Dashboard
+            Главная
           </Link>
           <Link
             href="/dashboard/news"
             className="flex items-center p-2 rounded-md font-mregular transition-colors hover:bg-light-border dark:hover:bg-dark-border"
           >
             <Newspaper size={20} className="mr-3" />
-            News
+            Новости
           </Link>
           <Link
             href="/dashboard/events"
             className="flex items-center p-2 rounded-md font-mregular transition-colors hover:bg-light-border dark:hover:bg-dark-border"
           >
             <Calendar size={20} className="mr-3" />
-            Events
+            События
           </Link>
           <Link
             href="/dashboard/surveys"
             className="flex items-center p-2 rounded-md font-mregular transition-colors hover:bg-light-border dark:hover:bg-dark-border"
           >
             <ClipboardList size={20} className="mr-3" />
-            Surveys
+            Опросы
           </Link>
           <Link
             href="/dashboard/petitions"
             className="flex items-center p-2 rounded-md font-mregular transition-colors hover:bg-light-border dark:hover:bg-dark-border"
           >
             <FileText size={20} className="mr-3" />
-            Petitions
+            Петиции
           </Link>
           <Link
             href="/dashboard/requests"
             className="flex items-center p-2 rounded-md font-mregular transition-colors hover:bg-light-border dark:hover:bg-dark-border"
           >
             <Send size={20} className="mr-3" />
-            Requests
+            Заявки
           </Link>
         </nav>
       </aside>

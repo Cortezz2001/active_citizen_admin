@@ -6,13 +6,13 @@ import { useData } from '../../lib/dataContext';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { getDocs, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { firestore } from '../../lib/firebase';
-import { searchSurveys, filterSurveys } from './surveysService';
+import { searchRequests, filterRequests } from './requestsService';
 import { Pencil, Trash2, ChevronLeft, ChevronRight, Search, Filter, RefreshCw, X, ChevronDown } from 'lucide-react';
 
-export default function SurveysPage() {
+export default function RequestsPage() {
   const { user } = useAuth();
   const { getData, deleteItem, refreshData } = useData();
-  const [surveys, setSurveys] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -42,7 +42,7 @@ export default function SurveysPage() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const querySnapshot = await getDocs(collection(firestore, 'surveys_categories'));
+        const querySnapshot = await getDocs(collection(firestore, 'requests_categories'));
         const categoriesData = querySnapshot.docs.map(doc => ({
           id: doc.id,
           name: doc.data().name?.ru || 'Без названия'
@@ -72,7 +72,7 @@ export default function SurveysPage() {
   const handleRefresh = async () => {
     const cityKey = localStorage.getItem('selectedCity') || 'default';
     try {
-      await refreshData('surveys', cityKey);
+      await refreshData('requests', cityKey);
     } catch (error) {
       console.error('Refresh failed:', error);
     }
@@ -154,7 +154,6 @@ export default function SurveysPage() {
   const getStatusDisplayName = (status) => {
     switch (status) {
       case 'all': return 'Все';
-      case 'Published': return 'Опубликовано';
       case 'In progress': return 'В процессе';
       case 'Rejected': return 'Отклонено';
       case 'Completed': return 'Завершено';
@@ -180,14 +179,14 @@ export default function SurveysPage() {
   }), [searchParams]);
 
   useEffect(() => {
-    const fetchSurveys = async () => {
+    const fetchRequests = async () => {
       if (!user?.uid) return;
 
       try {
         setLoading(true);
         const cityKey = localStorage.getItem('selectedCity') || '';
-        const surveyData = await getData('surveys', cityKey);
-        setSurveys(surveyData || []);
+        const requestData = await getData('requests', cityKey);
+        setRequests(requestData || []);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -195,13 +194,13 @@ export default function SurveysPage() {
       }
     };
 
-    fetchSurveys();
+    fetchRequests();
   }, [user, getData]);
 
-  // Filter and sort surveys based on search query and filter parameters
-  const filteredSurveys = useMemo(() => {
-    let filtered = searchSurveys(surveys, searchQuery);
-    filtered = filterSurveys(filtered, filterParams);
+  // Filter and sort requests based on search query and filter parameters
+  const filteredRequests = useMemo(() => {
+    let filtered = searchRequests(requests, searchQuery);
+    filtered = filterRequests(filtered, filterParams);
     
     // Apply sorting
     return filtered.sort((a, b) => {
@@ -209,7 +208,7 @@ export default function SurveysPage() {
       const dateB = b.createdAt?.toDate() || new Date(0);
       return filterParams.sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
     }) || [];
-  }, [surveys, searchQuery, filterParams]);
+  }, [requests, searchQuery, filterParams]);
 
   // Reset page when filters or search query change
   useEffect(() => {
@@ -227,21 +226,21 @@ export default function SurveysPage() {
     try {
       setIsDeleting(true);
       const cityKey = localStorage.getItem('selectedCity') || '';
-      await deleteItem('surveys', itemToDelete, cityKey);
+      await deleteItem('requests', itemToDelete, cityKey);
 
       // Create admin log entry
       await addDoc(collection(firestore, 'admin_logs'), {
         action: 'delete',
-        collection: 'surveys',
+        collection: 'requests',
         documentId: itemToDelete,
         timestamp: serverTimestamp(),
         userId: user?.uid || 'unknown',
       });
 
-      setSurveys((prev) => prev.filter((item) => item.id !== itemToDelete));
+      setRequests((prev) => prev.filter((item) => item.id !== itemToDelete));
       
       // Adjust page if necessary after deletion
-      const newTotalItems = filteredSurveys.length - 1;
+      const newTotalItems = filteredRequests.length - 1;
       const maxPage = Math.max(1, Math.ceil(newTotalItems / itemsPerPage));
       if (currentPage > maxPage) {
         setCurrentPage(maxPage);
@@ -261,10 +260,10 @@ export default function SurveysPage() {
   };
 
   // Pagination calculations
-  const totalPages = Math.max(1, Math.ceil(filteredSurveys.length / itemsPerPage));
+  const totalPages = Math.max(1, Math.ceil(filteredRequests.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentSurveys = filteredSurveys.slice(startIndex, endIndex);
+  const currentRequests = filteredRequests.slice(startIndex, endIndex);
 
   const goToPage = (page) => {
     if (page >= 1 && page <= totalPages) {
@@ -331,7 +330,7 @@ export default function SurveysPage() {
   if (error) {
     return (
       <div className="p-4 rounded-lg bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-100 font-mregular">
-        Ошибка загрузки опросов: {error}
+        Ошибка загрузки заявок: {error}
       </div>
     );
   }
@@ -340,7 +339,7 @@ export default function SurveysPage() {
     <div className="space-y-4 font-mregular">
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center">
-          <h1 className="text-2xl font-mbold">Опросы</h1>
+          <h1 className="text-2xl font-mbold">Заявки</h1>
           {isSearchActive && (
             <div className="ml-4 flex items-center text-sm text-light-text-secondary dark:text-dark-text-secondary">
               <span className="mr-2 font-mregular">Поиск:</span>
@@ -367,7 +366,7 @@ export default function SurveysPage() {
         <div className="flex space-x-4">
           <button
             onClick={handleRefresh}
-            className="flex items-center px-3 py-2 rounded-md font-msemibold transition-colors bg-primary hover:bg-[#0055c3] text-white dark:bg-dark-primary dark:hover:bg-blue-600"
+            className="flex items-center px-3 py-2 rounded-md font-msemibold transition-colors bg-primary hover:bg-[#0055c3] text-white dark:bg dark-primary dark:hover:bg-blue-600"
           >
             <RefreshCw size={16} />
           </button>
@@ -440,15 +439,6 @@ export default function SurveysPage() {
                         className={`w-full text-left px-3 py-2 hover:bg-light-border dark:hover:bg-dark-border ${filters.status === 'all' ? 'bg-light-border dark:bg-dark-border' : ''}`}
                       >
                         Все
-                      </button>
-                      <button
-                        onClick={() => {
-                          setFilters(prev => ({ ...prev, status: 'Published' }));
-                          setIsStatusDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 hover:bg-light-border dark:hover:bg-dark-border ${filters.status === 'Published' ? 'bg-light-border dark:bg-dark-border' : ''}`}
-                      >
-                        Опубликовано
                       </button>
                       <button
                         onClick={() => {
@@ -629,7 +619,7 @@ export default function SurveysPage() {
               </button>
             </div>
             <p className="text-sm text-light-text-primary dark:text-dark-text-primary mb-6 font-mregular">
-              Вы уверены, что хотите удалить этот опрос? Это действие нельзя отменить.
+              Вы уверены, что хотите удалить эту заявку? Это действие нельзя отменить.
             </p>
             <div className="flex justify-end space-x-2">
               <button
@@ -660,21 +650,21 @@ export default function SurveysPage() {
         </div>
       )}
 
-      {filteredSurveys.length > 0 && (
+      {filteredRequests.length > 0 && (
         <div className="flex justify-between items-center text-sm text-light-text-secondary dark:text-dark-text-secondary font-mmedium">
           <span className='font-mregular'>
             {searchQuery || filterParams.status !== 'all' || filterParams.categoryId !== 'all' || filterParams.dateFrom || filterParams.dateTo || filterParams.sortOrder !== 'newest' ? (
               <>
-                Найдено {filteredSurveys.length} из {surveys.length} записей
-                {filteredSurveys.length > itemsPerPage && (
+                Найдено {filteredRequests.length} из {requests.length} записей
+                {filteredRequests.length > itemsPerPage && (
                   <span className="ml-2">
-                    (показано {startIndex + 1}-{Math.min(endIndex, filteredSurveys.length)})
+                    (показано {startIndex + 1}-{Math.min(endIndex, filteredRequests.length)})
                   </span>
                 )}
               </>
             ) : (
               <>
-                Показано {startIndex + 1}-{Math.min(endIndex, filteredSurveys.length)} из {filteredSurveys.length} записей
+                Показано {startIndex + 1}-{Math.min(endIndex, filteredRequests.length)} из {filteredRequests.length} записей
               </>
             )}
           </span>
@@ -686,7 +676,7 @@ export default function SurveysPage() {
         </div>
       )}
 
-      {currentSurveys.map((item) => (
+      {currentRequests.map((item) => (
         <div 
           key={item.id}
           className="flex flex-col rounded-lg shadow-md bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border overflow-hidden"
@@ -696,14 +686,12 @@ export default function SurveysPage() {
               <h3 className="text-lg font-msemibold">
                 <span 
                   dangerouslySetInnerHTML={{
-                    __html: highlightText(item.title?.ru || 'Без названия', searchQuery)
+                    __html: highlightText(item.title || 'Без названия', searchQuery)
                   }} 
                 />
               </h3>
               <span className={`px-2 py-1 text-xs rounded-full font-msemibold whitespace-nowrap ml-2 ${
-                item.status === 'Published' 
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' 
-                  : item.status === 'In progress'
+                item.status === 'In progress'
                   ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100'
                   : item.status === 'Rejected'
                   ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100'
@@ -713,31 +701,46 @@ export default function SurveysPage() {
               </span>
             </div>
             
-            <div className="flex items-center text-sm text-light-text-secondary dark:text-dark-text-secondary mb-3 font-mmedium">
-              <span className="mr-2">
+            <div className="text-sm text-light-text-secondary dark:text-dark-text-secondary mb-3 font-mmedium">
+              <p>
                 Категория:{' '}
                 <span
                   dangerouslySetInnerHTML={{
                     __html: highlightText(item.categoryName || 'Без категории', searchQuery),
                   }}
                 />
-              </span>
-              <span>
-                Дата создания: {item.createdAt?.toDate().toLocaleDateString('ru-RU') || 'не указана'}
-              </span>
+              </p>
+              <p>Дата создания: {item.createdAt?.toDate().toLocaleDateString('ru-RU') || 'не указана'}</p>
+              <p>Адрес:{' '}
+                <span
+                  dangerouslySetInnerHTML={{
+                    __html: highlightText(item.address?.formattedAddress || 'Не указан', searchQuery)
+                  }}
+                />
+              </p>
+              {item.rejectionReason && (
+                <p>Причина отказа:{' '}
+                  <span
+                    dangerouslySetInnerHTML={{
+                      __html: highlightText(item.rejectionReason, searchQuery)
+                    }}
+                  />
+                </p>
+              )}
             </div>
             
             <p className="text-sm text-light-text-primary dark:text-dark-text-primary mb-4 flex-grow font-mregular">
               <span 
                 dangerouslySetInnerHTML={{
-                  __html: highlightText(item.description?.ru || 'Нет описания', searchQuery)
+                  __html: highlightText(item.description || 'Нет описания', searchQuery)
                 }} 
               />
             </p>
+
             
             <div className="flex justify-end space-x-2">
               <Link 
-                href={`/dashboard/surveys/edit/${item.id}`}
+                href={`/dashboard/requests/edit/${item.id}`}
                 className="p-2 rounded-md hover:bg-light-border dark:hover:bg-dark-border transition-colors font-mmedium"
                 title="Редактировать"
               >
@@ -801,7 +804,7 @@ export default function SurveysPage() {
         </div>
       )}
       
-      {(searchQuery || filterParams.status !== 'all' || filterParams.categoryId !== 'all' || filterParams.dateFrom || filterParams.dateTo || filterParams.sortOrder !== 'newest') && filteredSurveys.length === 0 && surveys.length > 0 && (
+      {(searchQuery || filterParams.status !== 'all' || filterParams.categoryId !== 'all' || filterParams.dateFrom || filterParams.dateTo || filterParams.sortOrder !== 'newest') && filteredRequests.length === 0 && requests.length > 0 && (
         <div className="text-center py-10 font-mregular">
           <p className="text-light-text-secondary dark:text-dark-text-secondary mb-2">
             По текущим фильтрам ничего не найдено
@@ -812,10 +815,10 @@ export default function SurveysPage() {
         </div>
       )}
       
-      {surveys.length === 0 && (
+      {requests.length === 0 && (
         <div className="text-center py-10 font-mregular">
           <p className="text-light-text-secondary dark:text-dark-text-secondary">
-            Нет опросов для отображения
+            Нет заявок для отображения
           </p>
         </div>
       )}

@@ -38,10 +38,11 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen p-6 bg-light-background dark:bg-dark-background text-light-text-primary dark:text-dark-text-primary">
-
-          <h1 className="text-2xl font-mbold">Dashboard</h1>
-
+    <div className="min-h-screen bg-light-background dark:bg-dark-background text-light-text-primary dark:text-dark-text-primary shadow-md">
+      <div className="max-w-7xl mx-auto rounded-lg border border-light-border dark:border-dark-border p-6">
+        <h1 className="text-2xl font-mbold">Dashboard</h1>
+      </div>
     </div>
+
   );
 }
