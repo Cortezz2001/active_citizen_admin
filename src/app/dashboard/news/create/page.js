@@ -127,7 +127,16 @@ export default function CreateNewsPage() {
         viewCount: 0,
       };
 
-      await addDoc(collection(firestore, 'news'), newsData);
+      const newsDocRef = await addDoc(collection(firestore, 'news'), newsData);
+
+      // Create admin log entry
+      await addDoc(collection(firestore, 'admin_logs'), {
+        action: 'create',
+        collection: 'news',
+        documentId: newsDocRef.id,
+        timestamp: serverTimestamp(),
+        userId: user?.uid || 'unknown',
+      });
 
       // Refresh the news cache after successful creation
       const cityKey = user?.cityKey || localStorage.getItem('selectedCity') || '';

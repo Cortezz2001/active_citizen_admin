@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useAuth } from '../../lib/authContext';
 import { useData } from '../../lib/dataContext';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { getDocs, collection } from 'firebase/firestore';
+import { getDocs, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { firestore } from '../../lib/firebase';
 import { searchNews, filterNews } from './newsService';
 import { Pencil, Trash2, ChevronLeft, ChevronRight, Search, Filter, RefreshCw, Plus, X, ChevronDown } from 'lucide-react';
@@ -219,29 +219,39 @@ export default function NewsPage() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!itemToDelete) return;
+const handleDeleteConfirm = async () => {
+  if (!itemToDelete) return;
 
-    try {
-      setIsDeleting(true);
-      const cityKey = localStorage.getItem('selectedCity') || '';
-      await deleteItem('news', itemToDelete, cityKey);
-      setNews((prev) => prev.filter((item) => item.id !== itemToDelete));
-      
-      // Adjust page if necessary after deletion
-      const newTotalItems = filteredNews.length - 1;
-      const maxPage = Math.max(1, Math.ceil(newTotalItems / itemsPerPage));
-      if (currentPage > maxPage) {
-        setCurrentPage(maxPage);
-      }
-    } catch (error) {
-      setError(error.message);
-    } finally {
-      setIsDeleting(false);
-      setIsDeleteModalOpen(false);
-      setItemToDelete(null);
+  try {
+    setIsDeleting(true);
+    const cityKey = localStorage.getItem('selectedCity') || '';
+    await deleteItem('news', itemToDelete, cityKey);
+
+    // Create admin log entry
+    await addDoc(collection(firestore, 'admin_logs'), {
+      action: 'delete',
+      collection: 'news',
+      documentId: itemToDelete,
+      timestamp: serverTimestamp(),
+      userId: user?.uid || 'unknown',
+    });
+
+    setNews((prev) => prev.filter((item) => item.id !== itemToDelete));
+    
+    // Adjust page if necessary after deletion
+    const newTotalItems = filteredNews.length - 1;
+    const maxPage = Math.max(1, Math.ceil(newTotalItems / itemsPerPage));
+    if (currentPage > maxPage) {
+      setCurrentPage(maxPage);
     }
-  };
+  } catch (error) {
+    setError(error.message);
+  } finally {
+    setIsDeleting(false);
+    setIsDeleteModalOpen(false);
+    setItemToDelete(null);
+  }
+};
 
   const handleDeleteCancel = () => {
     setIsDeleteModalOpen(false);

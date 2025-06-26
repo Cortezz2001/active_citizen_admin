@@ -4,7 +4,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../../lib/authContext';
 import { useData } from '../../../../lib/dataContext'; // Import useData
 import { firestore, storage } from '../../../../lib/firebase';
-import { collection, doc, getDoc, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, addDoc, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import MDEditor from '@uiw/react-md-editor';
 import { ChevronDown, X, ChevronLeft } from 'lucide-react';
@@ -121,66 +121,74 @@ export default function EditNewsPage() {
     }
   };
 
-  const handleSubmit = async (status) => {
-    if (
-      !formData.title.ru.trim() ||
-      !formData.shortDescription.ru.trim() ||
-      !formData.content.ru.trim() ||
-      !formData.title.kz.trim() ||
-      !formData.shortDescription.kz.trim() ||
-      !formData.content.kz.trim() ||
-      !formData.title.en.trim() ||
-      !formData.shortDescription.en.trim() ||
-      !formData.content.en.trim() ||
-      !categoryId
-    ) {
-      setError('Все поля, включая категорию, обязательны для заполнения');
+const handleSubmit = async (status) => {
+  if (
+    !formData.title.ru.trim() ||
+    !formData.shortDescription.ru.trim() ||
+    !formData.content.ru.trim() ||
+    !formData.title.kz.trim() ||
+    !formData.shortDescription.kz.trim() ||
+    !formData.content.kz.trim() ||
+    !formData.title.en.trim() ||
+    !formData.shortDescription.en.trim() ||
+    !formData.content.en.trim() ||
+    !categoryId
+  ) {
+    setError('Все поля, включая категорию, обязательны для заполнения');
+    return;
+  }
+
+  const setLoading = status === 'draft' ? setDraftLoading : setPublishLoading;
+  setLoading(true);
+  setError(null);
+
+  try {
+    let updatedImageUrl = imageUrl;
+    if (imageFile) {
+      const storageRef = ref(storage, `news/${Date.now()}_${imageFile.name}`);
+      await uploadBytes(storageRef, imageFile);
+      updatedImageUrl = await getDownloadURL(storageRef);
+    } else if (!imageUrl) {
+      setError('Изображение обязательно');
+      setLoading(false);
       return;
     }
 
-    const setLoading = status === 'draft' ? setDraftLoading : setPublishLoading;
-    setLoading(true);
-    setError(null);
+    const newsData = {
+      title: formData.title,
+      shortDescription: formData.shortDescription,
+      content: formData.content,
+      categoryId: doc(firestore, 'news_categories', categoryId),
+      cityKey: user?.cityKey || localStorage.getItem('selectedCity') || '',
+      isGlobal,
+      imageUrl: updatedImageUrl,
+      status,
+      updatedAt: serverTimestamp(),
+    };
 
-    try {
-      let updatedImageUrl = imageUrl;
-      if (imageFile) {
-        const storageRef = ref(storage, `news/${Date.now()}_${imageFile.name}`);
-        await uploadBytes(storageRef, imageFile);
-        updatedImageUrl = await getDownloadURL(storageRef);
-      } else if (!imageUrl) {
-        setError('Изображение обязательно');
-        setLoading(false);
-        return;
-      }
+    await setDoc(doc(firestore, 'news', newsId), newsData, { merge: true });
 
-      const newsData = {
-        title: formData.title,
-        shortDescription: formData.shortDescription,
-        content: formData.content,
-        categoryId: doc(firestore, 'news_categories', categoryId),
-        cityKey: user?.cityKey || localStorage.getItem('selectedCity') || '',
-        isGlobal,
-        imageUrl: updatedImageUrl,
-        status,
-        updatedAt: serverTimestamp(),
-        viewCount: 0, // Preserve existing viewCount or reset if needed
-      };
+    // Create admin log entry
+    await addDoc(collection(firestore, 'admin_logs'), {
+      action: 'update',
+      collection: 'news',
+      documentId: newsId,
+      timestamp: serverTimestamp(),
+      userId: user?.uid || 'unknown',
+    });
 
-      await setDoc(doc(firestore, 'news', newsId), newsData, { merge: true });
+    // Refresh the news cache after successful update
+    const cityKey = user?.cityKey || localStorage.getItem('selectedCity') || '';
+    await refreshData('news', cityKey);
 
-      // Refresh the news cache after successful update
-      const cityKey = user?.cityKey || localStorage.getItem('selectedCity') || '';
-      await refreshData('news', cityKey);
-
-      router.push('/dashboard/news');
-    } catch (error) {
-      console.error('Error updating news:', error);
-      setError('Ошибка при обновлении новости');
-    } finally {
-      setLoading(false);
-    }
-  };
+    router.push('/dashboard/news');
+  } catch (error) {
+    console.error('Error updating news:', error);
+    setError('Ошибка при обновлении новости');
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (fetchLoading) {
     return (
