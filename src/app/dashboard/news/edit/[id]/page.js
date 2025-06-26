@@ -171,6 +171,7 @@ const handleSubmit = async (status) => {
     // Create admin log entry
     await addDoc(collection(firestore, 'admin_logs'), {
       action: 'update',
+      cityKey: user?.cityKey || localStorage.getItem('selectedCity') || '',
       collection: 'news',
       documentId: newsId,
       timestamp: serverTimestamp(),

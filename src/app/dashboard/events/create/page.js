@@ -152,6 +152,7 @@ export default function CreateEventsPage() {
       // Create admin log entry
       await addDoc(collection(firestore, 'admin_logs'), {
         action: 'create',
+        cityKey: user?.cityKey || localStorage.getItem('selectedCity') || '',
         collection: 'events',
         documentId: eventDocRef.id,
         timestamp: serverTimestamp(),

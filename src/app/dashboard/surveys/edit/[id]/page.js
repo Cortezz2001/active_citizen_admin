@@ -179,6 +179,7 @@ export default function EditSurveyPage() {
       // Create admin log entry
       await addDoc(collection(firestore, 'admin_logs'), {
         action: 'status_changed',
+        cityKey: user?.cityKey || localStorage.getItem('selectedCity') || '',
         collection: 'surveys',
         documentId: surveyId,
         timestamp: serverTimestamp(),

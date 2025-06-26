@@ -134,6 +134,7 @@ const closeImageModal = () => {
       // Create admin log entry
       await addDoc(collection(firestore, 'admin_logs'), {
         action: 'status_changed',
+        cityKey: user?.cityKey || localStorage.getItem('selectedCity') || '',
         collection: 'requests',
         documentId: requestId,
         timestamp: serverTimestamp(),

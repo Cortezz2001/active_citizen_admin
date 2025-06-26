@@ -132,6 +132,7 @@ export default function CreateNewsPage() {
       // Create admin log entry
       await addDoc(collection(firestore, 'admin_logs'), {
         action: 'create',
+        cityKey: user?.cityKey || localStorage.getItem('selectedCity') || '',
         collection: 'news',
         documentId: newsDocRef.id,
         timestamp: serverTimestamp(),

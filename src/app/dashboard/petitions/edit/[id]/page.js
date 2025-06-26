@@ -161,6 +161,7 @@ export default function EditPetitionPage() {
       // Create admin log entry
       await addDoc(collection(firestore, 'admin_logs'), {
         action: 'status_changed',
+        cityKey: user?.cityKey || localStorage.getItem('selectedCity') || '',
         collection: 'petitions',
         documentId: petitionId,
         timestamp: serverTimestamp(),
