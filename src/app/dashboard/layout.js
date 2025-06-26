@@ -72,6 +72,10 @@ const handleCitySelect = async (cityKey) => {
     localStorage.setItem('selectedCity', cityKey); // Сохраняем в localStorage
     setIsDropdownOpen(false);
     refreshData('news', cityKey); 
+    refreshData('events', cityKey); 
+    refreshData('surveys', cityKey);
+    refreshData('petitions', cityKey);
+    refreshData('requests', cityKey);
   } catch (error) {
     console.error('Error updating city:', error);
   } finally {

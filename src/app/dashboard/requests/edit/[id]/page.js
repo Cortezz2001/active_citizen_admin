@@ -35,7 +35,7 @@ export default function EditRequestPage() {
   const [error, setError] = useState(null);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [tempRejectionReason, setTempRejectionReason] = useState('');
-
+const [selectedImage, setSelectedImage] = useState(null);
   // Fetch categories
   useEffect(() => {
     const fetchCategories = async () => {
@@ -53,6 +53,14 @@ export default function EditRequestPage() {
     };
     fetchCategories();
   }, []);
+
+  const openImageModal = (imageUrl, imageName) => {
+  setSelectedImage({ url: imageUrl, name: imageName });
+};
+
+const closeImageModal = () => {
+  setSelectedImage(null);
+};
 
   // Fetch request data
   useEffect(() => {
@@ -222,31 +230,102 @@ export default function EditRequestPage() {
           />
         </div>
 
-        {formData.mediaFiles && formData.mediaFiles.length > 0 && (
-          <div>
-            <label className="block mb-1 font-mmedium text-light-text-primary dark:text-dark-text-primary">Медиафайлы</label>
-            <div className="flex flex-wrap gap-4">
-              {formData.mediaFiles.map((file, index) => (
-                <div key={index} className="relative">
-                  {file.type === 'image' ? (
-                    <img
-                      src={file.url}
-                      alt={file.fileName}
-                      className="w-48 h-48 object-cover rounded-md"
-                    />
-                  ) : file.type === 'video' ? (
-                    <video
-                      src={file.url}
-                      controls
-                      className="w-48 h-48 object-cover rounded-md"
-                    />
-                  ) : null}
-                  <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary mt-1">{file.fileName}</p>
+
+{formData.mediaFiles && formData.mediaFiles.length > 0 && (
+  <div>
+    <label className="block mb-1 font-mmedium text-light-text-primary dark:text-dark-text-primary">Медиафайлы</label>
+    <div className="flex flex-wrap gap-4">
+      {formData.mediaFiles.map((file, index) => {
+        // Определяем тип файла на основе MIME-типа или расширения
+        const isImage = file.type?.startsWith('image/') || 
+                       file.name?.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp|bmp)$/);
+        const isVideo = file.type?.startsWith('video/') || 
+                       file.name?.toLowerCase().match(/\.(mp4|webm|ogg|avi|mov|wmv|flv)$/);
+        
+        return (
+          <div key={index} className="relative">
+            {isImage ? (
+              <img
+                src={file.url}
+                alt={file.name || `Изображение ${index + 1}`}
+                className="w-48 h-48 object-cover rounded-md border border-light-border dark:border-dark-border cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => openImageModal(file.url, file.name || `Изображение ${index + 1}`)}
+                onError={(e) => {
+                  console.error('Ошибка загрузки изображения:', file.url);
+                  e.target.style.display = 'none';
+                }}
+              />
+            ) : isVideo ? (
+              <video
+                src={file.url}
+                controls
+                className="w-48 h-48 object-cover rounded-md border border-light-border dark:border-dark-border"
+                onError={(e) => {
+                  console.error('Ошибка загрузки видео:', file.url);
+                  e.target.style.display = 'none';
+                }}
+              />
+            ) : (
+              // Для других типов файлов показываем иконку или информацию
+              <div className="w-48 h-48 flex items-center justify-center bg-light-surface dark:bg-dark-surface border border-light-border dark:border-dark-border rounded-md">
+                <div className="text-center">
+                  <div className="text-2xl mb-2">📄</div>
+                  <div className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
+                    {file.name || 'Файл'}
+                  </div>
                 </div>
-              ))}
+              </div>
+            )}
+            <div className="mt-1">
+              <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary truncate">
+                {file.name || `Файл ${index + 1}`}
+              </p>
+              {file.size && (
+                <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                  {file.size}
+                </p>
+              )}
             </div>
           </div>
-        )}
+        );
+      })}
+    </div>
+    
+    {/* Модальное окно для увеличенного изображения */}
+    {selectedImage && (
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+        onClick={closeImageModal}
+      >
+        <div 
+          className="relative max-w-4xl max-h-full"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={closeImageModal}
+            className="absolute top-4 right-4 text-white hover:text-gray-300 z-10 bg-black bg-opacity-50 rounded-full p-2"
+          >
+            <X size={24} />
+          </button>
+          <img
+            src={selectedImage.url}
+            alt={selectedImage.name}
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onError={(e) => {
+              console.error('Ошибка загрузки увеличенного изображения:', selectedImage.url);
+              closeImageModal();
+            }}
+          />
+          <div className="absolute bottom-4 left-4 right-4 text-center">
+            <p className="text-white bg-black bg-opacity-50 px-3 py-1 rounded">
+              {selectedImage.name}
+            </p>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+)}
 
         {formData.rejectionReason && (
           <div>
