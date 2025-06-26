@@ -6,8 +6,8 @@ import { firestore, storage } from '../../../lib/firebase';
 import { collection, addDoc, doc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import MDEditor from '@uiw/react-md-editor';
-import { ChevronDown, X } from 'lucide-react';
-
+import { ChevronDown, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
 export default function CreateNewsPage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -133,8 +133,16 @@ export default function CreateNewsPage() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto font-mregular">
-      <h1 className="text-2xl font-mbold mb-6 text-light-text-primary dark:text-dark-text-primary">Создать новость</h1>
+    <div className="mx-auto font-mregular">
+      <div className="flex items-center mb-6">
+
+        <div className="text-2xl font-mbold text-light-text-primary dark:text-dark-text-primary ">
+          <Link href="/dashboard/news" className="hover:text-primary">Новости</Link>
+          <span className="mx-2">-</span>
+          <span>Создать</span>
+        </div>
+      </div>
+
       {error && (
         <div className="mb-4 p-3 bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-100 rounded font-mregular">{error}</div>
       )}
