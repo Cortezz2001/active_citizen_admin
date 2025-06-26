@@ -5,23 +5,23 @@ import { useAuth } from '../../../../lib/authContext';
 import { useData } from '../../../../lib/dataContext';
 import { firestore } from '../../../../lib/firebase';
 import { collection, doc, getDoc, setDoc, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
-import MDEditor from '@uiw/react-md-editor';
-import { ChevronDown, X, ChevronLeft } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 import Link from 'next/link';
 
-export default function EditSurveyPage() {
+export default function EditPetitionPage() {
   const { user } = useAuth();
   const { refreshData } = useData();
   const router = useRouter();
   const params = useParams();
-  const surveyId = params.id;
+  const petitionId = params.id;
   const [categories, setCategories] = useState([]);
   const [activeLang, setActiveLang] = useState('ru');
   const [formData, setFormData] = useState({
     title: { ru: '', kz: '', en: '' },
     description: { ru: '', kz: '', en: '' },
+    problem: { ru: '', kz: '', en: '' },
+    solution: { ru: '', kz: '', en: '' },
     rejectionReason: { ru: '', kz: '', en: '' },
-    questions: [],
   });
   const [categoryId, setCategoryId] = useState('');
   const [status, setStatus] = useState('In progress');
@@ -38,7 +38,7 @@ export default function EditSurveyPage() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const querySnapshot = await getDocs(collection(firestore, 'surveys_categories'));
+        const querySnapshot = await getDocs(collection(firestore, 'petitions_categories'));
         const categoriesData = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           name: doc.data().name?.ru || 'Без названия',
@@ -52,66 +52,49 @@ export default function EditSurveyPage() {
     fetchCategories();
   }, []);
 
-  // Fetch survey data
+  // Fetch petition data
   useEffect(() => {
-    const fetchSurvey = async () => {
-      if (!surveyId) return;
+    const fetchPetition = async () => {
+      if (!petitionId) return;
       try {
         setFetchLoading(true);
-        const surveyDoc = await getDoc(doc(firestore, 'surveys', surveyId));
-        if (surveyDoc.exists()) {
-          const data = surveyDoc.data();
+        const petitionDoc = await getDoc(doc(firestore, 'petitions', petitionId));
+        if (petitionDoc.exists()) {
+          const data = petitionDoc.data();
+          // Normalize categoryId
+          let normalizedCategoryId = data.categoryId;
+          if (typeof data.categoryId === 'string' && data.categoryId.startsWith('petitions_categories/')) {
+            normalizedCategoryId = data.categoryId.split('/')[1];
+          } else if (typeof data.categoryId === 'object' && data.categoryId.id) {
+            normalizedCategoryId = data.categoryId.id;
+          }
           setFormData({
             title: data.title || { ru: '', kz: '', en: '' },
             description: data.description || { ru: '', kz: '', en: '' },
+            problem: data.problem || { ru: '', kz: '', en: '' },
+            solution: data.solution || { ru: '', kz: '', en: '' },
             rejectionReason: data.rejectionReason || { ru: '', kz: '', en: '' },
-            questions: data.questions || [],
           });
-          setCategoryId(typeof data.categoryId === 'object' ? data.categoryId.id : data.categoryId || '');
+          setCategoryId(normalizedCategoryId || '');
           setStatus(data.status || 'In progress');
         } else {
-          setError('Опрос не найден');
+          setError('Петиция не найдена');
         }
       } catch (error) {
-        console.error('Error fetching survey:', error);
-        setError('Ошибка загрузки опроса');
+        console.error('Error fetching petition:', error);
+        setError('Ошибка загрузки петиции');
       } finally {
         setFetchLoading(false);
       }
     };
-    fetchSurvey();
-  }, [surveyId]);
+    fetchPetition();
+  }, [petitionId]);
 
   const handleInputChange = (field, lang, value) => {
     setFormData((prev) => ({
       ...prev,
       [field]: { ...prev[field], [lang]: value },
     }));
-  };
-
-  const handleQuestionChange = (index, field, lang, value) => {
-    setFormData((prev) => {
-      const newQuestions = [...prev.questions];
-      newQuestions[index] = {
-        ...newQuestions[index],
-        [field]: {
-          ...newQuestions[index][field],
-          [lang]: value,
-        },
-      };
-      return { ...prev, questions: newQuestions };
-    });
-  };
-
-  const handleOptionChange = (questionIndex, optionIndex, lang, value) => {
-    setFormData((prev) => {
-      const newQuestions = [...prev.questions];
-      newQuestions[questionIndex].options[optionIndex] = {
-        ...newQuestions[questionIndex].options[optionIndex],
-        [lang]: value,
-      };
-      return { ...prev, questions: newQuestions };
-    });
   };
 
   const handleRejectReasonChange = (lang, value) => {
@@ -125,7 +108,6 @@ export default function EditSurveyPage() {
     let loadingSetter;
     if (newStatus === 'Published') {
       loadingSetter = setPublishLoading;
-      // Validate all fields for Published status
       if (
         !formData.title.ru.trim() ||
         !formData.title.kz.trim() ||
@@ -133,14 +115,13 @@ export default function EditSurveyPage() {
         !formData.description.ru.trim() ||
         !formData.description.kz.trim() ||
         !formData.description.en.trim() ||
-        !categoryId ||
-        formData.questions.some(
-          (q) =>
-            !q.questionText.ru.trim() ||
-            !q.questionText.kz.trim() ||
-            !q.questionText.en.trim() ||
-            q.options.some((opt) => !opt.ru.trim() || !opt.kz.trim() || !opt.en.trim())
-        )
+        !formData.problem.ru.trim() ||
+        !formData.problem.kz.trim() ||
+        !formData.problem.en.trim() ||
+        !formData.solution.ru.trim() ||
+        !formData.solution.kz.trim() ||
+        !formData.solution.en.trim() ||
+        !categoryId
       ) {
         setError('Все поля на всех языках и категория обязательны для публикации');
         return;
@@ -163,36 +144,37 @@ export default function EditSurveyPage() {
     setError(null);
 
     try {
-      const surveyData = {
+      const petitionData = {
         title: formData.title,
         description: formData.description,
+        problem: formData.problem,
+        solution: formData.solution,
         rejectionReason: newStatus === 'Rejected' ? tempRejectionReason : null,
-        categoryId: doc(firestore, 'surveys_categories', categoryId),
+        categoryId: categoryId,
         cityKey: user?.cityKey || localStorage.getItem('selectedCity') || '',
-        questions: formData.questions,
         status: newStatus,
         updatedAt: serverTimestamp(),
       };
 
-      await setDoc(doc(firestore, 'surveys', surveyId), surveyData, { merge: true });
+      await setDoc(doc(firestore, 'petitions', petitionId), petitionData, { merge: true });
 
       // Create admin log entry
       await addDoc(collection(firestore, 'admin_logs'), {
         action: 'status_changed',
-        collection: 'surveys',
-        documentId: surveyId,
+        collection: 'petitions',
+        documentId: petitionId,
         timestamp: serverTimestamp(),
         userId: user?.uid || 'unknown',
       });
 
-      // Refresh the surveys cache
+      // Refresh the petitions cache
       const cityKey = user?.cityKey || localStorage.getItem('selectedCity') || '';
-      await refreshData('surveys', cityKey);
+      await refreshData('petitions', cityKey);
 
-      router.push('/dashboard/surveys');
+      router.push('/dashboard/petitions');
     } catch (error) {
-      console.error('Error updating survey:', error);
-      setError('Ошибка при обновлении опроса');
+      console.error('Error updating petition:', error);
+      setError('Ошибка при обновлении петиции');
     } finally {
       loadingSetter(false);
       if (newStatus === 'Rejected') {
@@ -224,7 +206,7 @@ export default function EditSurveyPage() {
     <div className="mx-auto font-mregular">
       <div className="flex items-center mb-6">
         <div className="text-2xl font-mbold text-light-text-primary dark:text-dark-text-primary">
-          <Link href="/dashboard/surveys" className="hover:text-primary">Опросы</Link>
+          <Link href="/dashboard/petitions" className="hover:text-primary">Петиции</Link>
           <span className="mx-2">-</span>
           <span>Редактировать</span>
         </div>
@@ -343,45 +325,36 @@ export default function EditSurveyPage() {
             />
           </div>
 
-          {formData.questions.map((question, qIndex) => (
-            <div key={qIndex} className="border border-light-border dark:border-dark-border p-4 rounded-lg bg-light-card dark:bg-dark-surface">
-              <label className="block mb-1 font-mmedium text-light-text-primary dark:text-dark-text-primary">
-                Вопрос {qIndex + 1} ({activeLang === 'ru' ? 'ru' : activeLang === 'kz' ? 'kz' : 'en'}) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={question.questionText[activeLang]}
-                onChange={(e) => handleQuestionChange(qIndex, 'questionText', activeLang, e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary font-mregular"
-                disabled={publishLoading || rejectLoading || completeLoading}
-                required
-                placeholder={`Введите текст вопроса на ${activeLang === 'ru' ? 'русском' : activeLang === 'kz' ? 'казахском' : 'английском'}`}
-              />
-              <div className="mt-2">
-                <label className="block mb-1 font-mmedium text-light-text-primary dark:text-dark-text-primary">
-                  Варианты ответа
-                </label>
-                {question.options.map((option, oIndex) => (
-                  <div key={oIndex} className="ml-4 mt-2">
-                    <label className="block mb-1 font-mmedium text-light-text-primary dark:text-dark-text-primary">
-                      Вариант {oIndex + 1} ({activeLang === 'ru' ? 'ru' : activeLang === 'kz' ? 'kz' : 'en'}) <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={option[activeLang]}
-                      onChange={(e) => handleOptionChange(qIndex, oIndex, activeLang, e.target.value)}
-                      className="w-full px-4 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary font-mregular"
-                      disabled={publishLoading || rejectLoading || completeLoading}
-                      required
-                      placeholder={`Введите вариант ответа на ${activeLang === 'ru' ? 'русском' : activeLang === 'kz' ? 'казахском' : 'английском'}`}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+          <div>
+            <label className="block mb-1 font-mmedium text-light-text-primary dark:text-dark-text-primary">
+              Проблема ({activeLang === 'ru' ? 'ru' : activeLang === 'kz' ? 'kz' : 'en'}) <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={formData.problem[activeLang]}
+              onChange={(e) => handleInputChange('problem', activeLang, e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary font-mregular"
+              rows="3"
+              disabled={publishLoading || rejectLoading || completeLoading}
+              required
+              placeholder={`Введите проблему на ${activeLang === 'ru' ? 'русском' : activeLang === 'kz' ? 'казахском' : 'английском'}`}
+            />
+          </div>
 
-          {/* Reject Modal */}
+          <div>
+            <label className="block mb-1 font-mmedium text-light-text-primary dark:text-dark-text-primary">
+              Решение ({activeLang === 'ru' ? 'ru' : activeLang === 'kz' ? 'kz' : 'en'}) <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={formData.solution[activeLang]}
+              onChange={(e) => handleInputChange('solution', activeLang, e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface text-light-text-primary dark:text-dark-text-primary font-mregular"
+              rows="3"
+              disabled={publishLoading || rejectLoading || completeLoading}
+              required
+              placeholder={`Введите решение на ${activeLang === 'ru' ? 'русском' : activeLang === 'kz' ? 'казахском' : 'английском'}`}
+            />
+          </div>
+
           {isRejectModalOpen && (
             <div className="fixed inset-0 bg-light-background/90 dark:bg-dark-background/90 flex items-center justify-center z-50">
               <div className="bg-light-surface dark:bg-dark-surface rounded-lg p-6 w-full max-w-md">
